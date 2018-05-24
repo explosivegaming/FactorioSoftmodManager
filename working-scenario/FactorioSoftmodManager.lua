@@ -101,13 +101,18 @@ Manager.loadModules = setmetatable({},
         __call=function(tbl)
             -- ReadOnlyManager used to trigger verbose change
             ReadOnlyManager.currentState = 'moduleLoad'
+            -- goes though the index looking for modules
             for module_name,location in pairs (moduleIndex) do
                 Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
+                -- sets up a new env that will capture all varibles
                 local env = setmetatable({},{__metatable=false,__index=_G,__newindex=function(tbl,key,value) rawset(env,key,value) end})
+                -- forces all non local varibles to be local; however can not be returned from the module
                 setmetatable(_G,{__newindex=function(tbl,key,value) rawset(env,key,value) end})
                 local module = {pcall(require,location)}
+                -- extracts the module into global
                 if table.remove(module,1) then
                     Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
+                    -- sets that it has been loaded and makes in global under module name
                     tbl[module_name] = table.remove(module,1)
                     rawset(_G,module_name,tbl[module_name])
                 else
@@ -116,12 +121,19 @@ Manager.loadModules = setmetatable({},
             end
             setmetatable(_G,{})
             ReadOnlyManager.currentState = 'moduleInit'
+            -- runs though all loaded modules looking for on_init function; all other modules have been loaded
             for module_name,data in pairs(tbl) do
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
                     Manager.verbose('Initiating module: "'..module_name)
                     local success, err = pcall(data.on_init)
+                    if success then
+                        Manager.verbose('Successfully Initiated: "'..module_name..'"; Location: '..location)
+                    else
+                        Manager.verbose('Failed Initiation: "'..module_name..'"; Location: '..location..' ('..err..')','errorCaught')
+                    end
                 end
             end
+            ReadOnlyManager.currentState = 'moduleEnv'
         end,
         __len=function(tbl)
             local rtn = 0
