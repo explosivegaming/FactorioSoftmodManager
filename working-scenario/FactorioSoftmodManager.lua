@@ -1,8 +1,32 @@
 -- Used to load all other modules that are indexed in index.lua
-local Manager = {}
 local moduleIndex = require("/modules/index")
+local Manager = {}
+--- Setup for metatable of the Manager to force read only nature
+-- @usage Manager() -- runs Manager.loadModdules()
+local ReadOnlyManager = setmetatable({},{
+    __call=function(tbl)
+        if #Manager.loadModdules == 0 then
+            Manager.loadModules()
+        end
+    end,
+    __index=function(tbl,key)
+        return rawget(Manager,key)
+    end,
+    __newindex=function(tbl,key,value)
+        if key == 'currentState' then
+            Manager.verbose('Current state is now: "'..value.. '"; The new verbose state is: '..tostring(Manager.setVerbose[value]),true) 
+            rawset(Manager,key,value)
+        else error('Manager is read only please use included methods')  end
+    end,
+    __metatable=false,
+    __tostring=function(tbl)
+        return tostring(Manager.loadModules)
+    end
+})
+
 
 Manager.currentState = 'selfInit'
+-- selfInit > moduleLoad > moduleInit > moduleEnv
 
 ---- Setup of the verbose and verbose settings
 
@@ -17,11 +41,11 @@ end
 --- Used to call the output of the verbose when the current state allows it
 -- @usage Manager.verbose('Hello, World!')
 -- @tparm rtn string the value that will be returned though verbose output
--- @tparm force boolean when set verbose will always return a value
-Manager.verbose = function(rtn,force)
+-- @tparm action string is used to decide which verbose this is error || event etc
+Manager.verbose = function(rtn,action)
     local settings = Manager.setVerbose
     local state = Manager.currentState
-    if force or settings[state] then
+    if action and (action == true or settings[action]) or settings[state] then
         if type(settings.output) == 'function' then
             settings.output(rtn)
         else
@@ -36,7 +60,7 @@ end
 Manager.setVerbose = setmetatable(
     {
         selfInit=true, -- called while the manager is being set up
-        moduleRequire=false, -- when a module is required by the manager
+        moduleLoad=false, -- when a module is required by the manager
         moduleInit=false, -- when and within the initation of a module
         moduleEnv=false, -- during module runtime, this is a global option set within each module for fine control
         eventRegistered=false, -- when a module registers its event handlers
@@ -72,10 +96,32 @@ Manager.setVerbose = setmetatable(
 -- call to verbose to show start up
 Manager.verbose('Current state is now: "selfInit"; The verbose state is: '..tostring(Manager.setVerbose.selfInit),true)
 
-Manager.loadModdules = setmetatable({},
+Manager.loadModules = setmetatable({},
     {
-        __call=function(...)
-            return {...}
+        __call=function(tbl)
+            -- ReadOnlyManager used to trigger verbose change
+            ReadOnlyManager.currentState = 'moduleLoad'
+            for module_name,location in pairs (moduleIndex) do
+                Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
+                local env = setmetatable({},{__metatable=false,__index=_G,__newindex=function(tbl,key,value) rawset(env,key,value) end})
+                setmetatable(_G,{__newindex=function(tbl,key,value) rawset(env,key,value) end})
+                local module = {pcall(require,location)}
+                if table.remove(module,1) then
+                    Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
+                    tbl[module_name] = table.remove(module,1)
+                    rawset(_G,module_name,tbl[module_name])
+                else
+                    Manager.verbose('Failed load: "'..module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
+                end
+            end
+            setmetatable(_G,{})
+            ReadOnlyManager.currentState = 'moduleInit'
+            for module_name,data in pairs(tbl) do
+                if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
+                    Manager.verbose('Initiating module: "'..module_name)
+                    local success, err = pcall(data.on_init)
+                end
+            end
         end,
         __len=function(tbl)
             local rtn = 0
@@ -87,29 +133,11 @@ Manager.loadModdules = setmetatable({},
         __tostring=function(tbl)
             local rtn = 'Load Modules: '
             for key,value in pairs(tbl) do
-                if type(value) == 'boolean' then
                     rtn=rtn..key..', '
-                end
             end
             return rtn:sub(1,-3)
         end
     }
 )
 
---- Setup for metatable of the Manager to force read only nature
--- @usage Manager() -- runs Manager.loadModdules()
-setmetatable(Manager,{
-    __call=function(tbl)
-        if #Manager.loadModdules == 0 then
-            Manager.loadModdules()
-        end
-    end,
-    __newindex=function(tbl,key,value)
-        if key ~= 'currentState' then error('Manager is read only please use included methods')
-        else Manager.verbose('Current state is now: "'..value.. '"; The new verbose state is: '..tostring(Manager.setVerbose[value]),true) rawset(tbl,key,value) end
-    end,
-    __tostring=function(tbl)
-        return tostring(Manager.loadModdules)
-    end
-})
-return Manager
+return ReadOnlyManager

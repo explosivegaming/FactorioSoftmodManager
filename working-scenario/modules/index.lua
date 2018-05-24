@@ -1,4 +1,4 @@
 return {
-    ['moduleOne']='/modules/moduleOne/control.lua',
-    ['moduleTwo']='/modules/moduleTwo/control.lua'
+    ['moduleOne']='/modules/moduleOne/control',
+    ['moduleTwo']='/modules/moduleTwo/control'
 }
