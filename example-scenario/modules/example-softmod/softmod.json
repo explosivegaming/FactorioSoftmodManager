@@ -1,0 +1,12 @@
+{
+  "name": "example-softmod",
+  "version": "1.0.0",
+  "description": "",
+  "main": "control.lua",
+  "dependencies": {
+    "example-dependencie": "1.0.0"
+  },
+  "keywords": [],
+  "author": "badgamernl <badgamernl@gmail.com>",
+  "license": "ISC"
+}
