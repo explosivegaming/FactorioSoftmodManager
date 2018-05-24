@@ -14,7 +14,7 @@ local ReadOnlyManager = setmetatable({},{
     end,
     __newindex=function(tbl,key,value)
         if key == 'currentState' then
-            Manager.verbose('Current state is now: "'..value.. '"; The new verbose state is: '..tostring(Manager.setVerbose[value]),true) 
+            Manager.verbose('Current state is now: "'..value.. '"; The verbose state is now: '..tostring(Manager.setVerbose[value]),true) 
             rawset(Manager,key,value)
         else error('Manager is read only please use included methods')  end
     end,
