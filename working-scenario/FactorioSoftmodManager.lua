@@ -4,13 +4,12 @@ local Manager = {}
 --- Setup for metatable of the Manager to force read only nature
 -- @usage Manager() -- runs Manager.loadModdules()
 local ReadOnlyManager = setmetatable({},{
+    __index=Manager,
+    __metatable=false,
     __call=function(tbl)
-        if #Manager.loadModdules == 0 then
-            Manager.loadModules()
+        if #tbl.loadModules == 0 then
+            tbl.loadModules()
         end
-    end,
-    __index=function(tbl,key)
-        return rawget(Manager,key)
     end,
     __newindex=function(tbl,key,value)
         if key == 'currentState' then
@@ -18,7 +17,6 @@ local ReadOnlyManager = setmetatable({},{
             rawset(Manager,key,value)
         else error('Manager is read only please use included methods')  end
     end,
-    __metatable=false,
     __tostring=function(tbl)
         return tostring(Manager.loadModules)
     end
@@ -96,6 +94,30 @@ Manager.setVerbose = setmetatable(
 -- call to verbose to show start up
 Manager.verbose('Current state is now: "selfInit"; The verbose state is: '..tostring(Manager.setVerbose.selfInit),true)
 
+Manager.sandbox = setmetatable({
+    -- can not use existing keys of _G
+    verbose=Manager.verbose,
+    module_exports=false
+},{
+    __metatable=false,
+    __call=function(tbl,callback,...)
+        if type(callback) == 'function' then 
+            -- creates a new sandbox env
+            local sandbox = tbl()
+            -- new indexs are saved into sandbox and if _G does not have the index then look in sandbox
+            setmetatable(_G,{
+                __index=sandbox,
+                __newindex=function(tbl,key,value) rawset(sandbox,key,value) end
+            })
+            -- runs the callback
+            local rtn = {pcall(callback,...)}
+            -- resets the global metatable to avoid conflict
+            setmetatable(_G,{})
+            return sandbox, table.remove(rtn,1), rtn
+        else return setmetatable({},{__index=tbl}) end
+    end
+})
+
 Manager.loadModules = setmetatable({},
     {
         __call=function(tbl)
@@ -104,22 +126,18 @@ Manager.loadModules = setmetatable({},
             -- goes though the index looking for modules
             for module_name,location in pairs (moduleIndex) do
                 Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
-                -- sets up a sandbox that acts as a global for the module
-                local sandbox = {}
-                -- new indexs are saved into sandbox and if _G does not have the index then look in sandbox
-                setmetatable(_G,{__index=sandbox,__newindex=function(tbl,key,value) rawset(sandbox,key,value) end})
-                -- runs the module file given in index
-                local module = {pcall(require,location)}
-                -- resets the global metatable to avoid conflict
-                setmetatable(_G,{})
+                -- runs the module in a sandbox env
+                local sandbox, success, module = Manager.sandbox(require,location)
                 -- extracts the module into global
-                if table.remove(module,1) then
+                if success then
                     local globals = ''
                     for key,value in pairs(sandbox) do globals = globals..key..', ' end
                     if globals ~= '' then Manager.verbose('Globals caught: '..globals:sub(1,-3),'errorCaught') end
                     Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
                     -- sets that it has been loaded and makes in global under module name
-                    tbl[module_name] = table.remove(module,1)
+                    if sandbox.module_exports and type(sandbox.module_exports) == 'table' 
+                    then tbl[module_name] = sandbox.module_exports
+                    else tbl[module_name] = table.remove(module,1) end
                     rawset(_G,module_name,tbl[module_name])
                 else
                     Manager.verbose('Failed load: "'..module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
@@ -136,6 +154,7 @@ Manager.loadModules = setmetatable({},
                     else
                         Manager.verbose('Failed Initiation: "'..module_name..'"; Location: '..location..' ('..err..')','errorCaught')
                     end
+                    data.on_init = nil
                 end
             end
             ReadOnlyManager.currentState = 'moduleEnv'

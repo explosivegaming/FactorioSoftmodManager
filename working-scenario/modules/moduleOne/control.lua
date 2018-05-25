@@ -1,7 +1,8 @@
 local function moduleOneCall()
     game.print('mod one')
 end
-test = 'test'
+
+test = 'test_G'
 local testTwo = 'test'
 return {
     test=test,

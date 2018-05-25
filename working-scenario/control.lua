@@ -9,4 +9,4 @@ Manager.setVerbose{
     errorCaught=true, -- when an error is caught during runtime
     output=Manager._verbose -- can be: can be: print || log || other function
 }
-Manager.loadModules()
+Manager() -- can be Manager.loadModules() if called else where
