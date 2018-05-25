@@ -114,6 +114,9 @@ Manager.loadModules = setmetatable({},
                 setmetatable(_G,{})
                 -- extracts the module into global
                 if table.remove(module,1) then
+                    local globals = ''
+                    for key,value in pairs(sandbox) do globals = globals..key..', ' end
+                    if globals ~= '' then Manager.verbose('Globals caught: '..globals:sub(1,-3),'errorCaught') end
                     Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
                     -- sets that it has been loaded and makes in global under module name
                     tbl[module_name] = table.remove(module,1)
