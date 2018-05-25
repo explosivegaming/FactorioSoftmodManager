@@ -104,11 +104,14 @@ Manager.loadModules = setmetatable({},
             -- goes though the index looking for modules
             for module_name,location in pairs (moduleIndex) do
                 Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
-                -- sets up a new env that will capture all varibles
-                local env = setmetatable({},{__metatable=false,__index=_G,__newindex=function(tbl,key,value) rawset(env,key,value) end})
-                -- forces all non local varibles to be local; however can not be returned from the module
-                setmetatable(_G,{__newindex=function(tbl,key,value) rawset(env,key,value) end})
+                -- sets up a sandbox that acts as a global for the module
+                local sandbox = {}
+                -- new indexs are saved into sandbox and if _G does not have the index then look in sandbox
+                setmetatable(_G,{__index=sandbox,__newindex=function(tbl,key,value) rawset(sandbox,key,value) end})
+                -- runs the module file given in index
                 local module = {pcall(require,location)}
+                -- resets the global metatable to avoid conflict
+                setmetatable(_G,{})
                 -- extracts the module into global
                 if table.remove(module,1) then
                     Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
@@ -119,7 +122,6 @@ Manager.loadModules = setmetatable({},
                     Manager.verbose('Failed load: "'..module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
                 end
             end
-            setmetatable(_G,{})
             ReadOnlyManager.currentState = 'moduleInit'
             -- runs though all loaded modules looking for on_init function; all other modules have been loaded
             for module_name,data in pairs(tbl) do
