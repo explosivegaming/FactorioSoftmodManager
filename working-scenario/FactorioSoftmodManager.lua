@@ -148,6 +148,7 @@ Manager.loadModules = setmetatable({},
             for module_name,location in pairs (moduleIndex) do
                 Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
                 -- runs the module in a sandbox env
+                _G.module_name = module_name
                 local sandbox, success, module = Manager.sandbox(require,location)
                 -- extracts the module into global
                 if success then
@@ -163,6 +164,7 @@ Manager.loadModules = setmetatable({},
                 else
                     Manager.verbose('Failed load: "'..module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
                 end
+                _G.module_name = nil
             end
             ReadOnlyManager.currentState = 'moduleInit'
             -- runs though all loaded modules looking for on_init function; all other modules have been loaded
@@ -239,6 +241,12 @@ Manager.error = setmetatable({
         if key:lower() == 'addhandler' or key:lower() == 'sethandler' or key:lower() == 'handler' then return rawget(tbl,'__error_handler')
         elseif key == '__error_call' or key == '__error_const' or key == '__error_handler' then tbl(key..' can not be indexed please use build in methods',2)
         else return rawget(tbl,key) end
+    end,
+    __newindex=function(tbl,key,value)
+        if type(value) == 'function' then 
+            if module_name then Manager.verbose('Module: "'..module_name..'" Added Error Handler: ""'..key..'"','eventRegistered') 
+            else Manager.verbose('Added Error Handler: '..key,'eventRegistered') end
+        end
     end,
     __len=function(tbl)
         local rtn=0
