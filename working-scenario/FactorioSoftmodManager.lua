@@ -47,6 +47,8 @@ end
 Manager.verbose = function(rtn,action)
     local settings = Manager.setVerbose
     local state = Manager.currentState
+    if module_name then rtn='['..module_name..'] '..rtn 
+    else rtn='[FSM] '..rtn end
     if module_verbose or action and (action == true or settings[action]) or settings[state] then
         if type(settings.output) == 'function' then
             settings.output(rtn)
@@ -145,26 +147,26 @@ Manager.loadModules = setmetatable({},
             -- ReadOnlyManager used to trigger verbose change
             ReadOnlyManager.currentState = 'moduleLoad'
             -- goes though the index looking for modules
-            for module_name,location in pairs (moduleIndex) do
-                Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
+            for _module_name,location in pairs (moduleIndex) do
+                Manager.verbose('Loading module: "'.._module_name..'"; Location: '..location)
                 -- runs the module in a sandbox env
-                _G.module_name = module_name
+                _G.module_name = _module_name
                 local sandbox, success, module = Manager.sandbox(require,location)
+                _G.module_name = nil
                 -- extracts the module into global
                 if success then
                     local globals = ''
                     for key,value in pairs(sandbox) do globals = globals..key..', ' end
-                    if globals ~= '' then Manager.verbose('Globals caught: '..globals:sub(1,-3),'errorCaught') end
-                    Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
+                    if globals ~= '' then Manager.verbose('Globals caught in "'.._module_name..'": '..globals:sub(1,-3),'errorCaught') end
+                    Manager.verbose('Successfully loaded: "'.._module_name..'"; Location: '..location)
                     -- sets that it has been loaded and makes in global under module name
                     if sandbox.module_exports and type(sandbox.module_exports) == 'table' 
-                    then tbl[module_name] = sandbox.module_exports
-                    else tbl[module_name] = table.remove(module,1) end
-                    rawset(_G,module_name,tbl[module_name])
+                    then tbl[_module_name] = sandbox.module_exports
+                    else tbl[_module_name] = table.remove(module,1) end
+                    rawset(_G,_module_name,tbl[_module_name])
                 else
-                    Manager.verbose('Failed load: "'..module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
+                    Manager.verbose('Failed load: "'.._module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
                 end
-                _G.module_name = nil
             end
             ReadOnlyManager.currentState = 'moduleInit'
             -- runs though all loaded modules looking for on_init function; all other modules have been loaded
@@ -230,7 +232,7 @@ Manager.error = setmetatable({
                 if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop by: '..handler_name,'errorCaught') rawget(tbl,'__error_call')('Force Stop by: '..handler_name) end
             end
         elseif game then
-            Manager.verbose('No error handlers loaded; default game print used','errorCaught')
+            Manager.verbose('No error handlers loaded; Default game print used','errorCaught')
             game.print(err)
         else
             Manager.verbose('No error handlers loaded; Game not loaded; Forced crash: '..err,'errorCaught')
@@ -244,8 +246,8 @@ Manager.error = setmetatable({
     end,
     __newindex=function(tbl,key,value)
         if type(value) == 'function' then 
-            if module_name then Manager.verbose('Module: "'..module_name..'" Added Error Handler: "'..key..'"','eventRegistered') 
-            else Manager.verbose('Added Error Handler: '..key,'eventRegistered') end
+            Manager.verbose('Added Error Handler: "'..key..'"','eventRegistered')
+            rawset(tbl,key,value)
         end
     end,
     __len=function(tbl)
