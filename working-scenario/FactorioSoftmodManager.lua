@@ -31,7 +31,9 @@ Manager.currentState = 'selfInit'
 --- Default output for the verbose
 -- @usage Manager.verbose('Hello, World!')
 -- @tparm rtn string the value that will be returned though verbose output
-Manager._verbose = function(rtn) 
+Manager._verbose = function(rtn)
+    if game and Manager.setVerbose._output ~= true then Manager.setVerbose._output=true game.write_file('verbose.log',rtn)
+    elseif game then game.write_file('verbose.log',rtn,true) end
     if print then print(rtn) end
     if _log then _log(rtn) end -- _log is a call to first line of control.lua to shorten log lines
 end
@@ -64,6 +66,7 @@ Manager.setVerbose = setmetatable(
         eventRegistered=false, -- when a module registers its event handlers
         errorCaught=true, -- when an error is caught during runtime
         output=Manager._verbose-- can be: print || log || or other function
+        _output={} -- a constant value that can used to store output data
     },
     {
         __call=function(tbl,newTbl)
