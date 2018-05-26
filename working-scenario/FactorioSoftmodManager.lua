@@ -244,7 +244,7 @@ Manager.error = setmetatable({
     end,
     __newindex=function(tbl,key,value)
         if type(value) == 'function' then 
-            if module_name then Manager.verbose('Module: "'..module_name..'" Added Error Handler: ""'..key..'"','eventRegistered') 
+            if module_name then Manager.verbose('Module: "'..module_name..'" Added Error Handler: "'..key..'"','eventRegistered') 
             else Manager.verbose('Added Error Handler: '..key,'eventRegistered') end
         end
     end,
