@@ -25,7 +25,16 @@ local ReadOnlyManager = setmetatable({},{
         return tostring(Manager.loadModules)
     end
 })
-
+local function setModuleName(name)
+    _G.module_name = setmetatable({},{
+        __index=function(tbl,key) return name end,
+        __newindex=function(tbl,key,value) error('Module Name Is Read Only') end
+        __tostring=function(tbl) return name end,
+        __concat=function(tbl) return name end,
+        __eq=function(op1,op2) return name ~= nil end
+        __metatable=false,
+    })
+end
 
 Manager.currentState = 'selfInit'
 -- selfInit > moduleLoad > moduleInit > moduleEnv
@@ -150,9 +159,11 @@ Manager.loadModules = setmetatable({},
             for _module_name,location in pairs (moduleIndex) do
                 Manager.verbose('Loading module: "'.._module_name..'"; Location: '..location)
                 -- runs the module in a sandbox env
-                _G.module_name,_G.module_location = _module_name,location
+                setModuleName(_module_name)
+                _G.module_location = location
                 local sandbox, success, module = Manager.sandbox(require,location)
-                _G.module_name,_G.module_location  = nil,nil
+                setModuleName(nil)
+                _G.module_location = nil
                 -- extracts the module into global
                 if success then
                     local globals = ''
@@ -172,9 +183,9 @@ Manager.loadModules = setmetatable({},
             for _module_name,data in pairs(tbl) do
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
                     Manager.verbose('Initiating module: "'.._module_name)
-                    _G.module_name = _module_name
+                    _setModuleName(_module_name)
                     local success, err = pcall(data.on_init)
-                    _G.module_name = nil
+                    setModuleName(nil)
                     if success then
                         Manager.verbose('Successfully Initiated: "'.._module_name..'"; Location: '..location)
                     else
@@ -271,6 +282,7 @@ Manager.error = setmetatable({
 -- overrides the default error function
 error=Manager.error
 
+-- event does work a bit differnt from error, and if event breaks error is the fallback
 --- Event handler that modules can use, each module can register one function per event
 -- @usage Manager.event[event_name] = callback -- sets the callback for that event
 -- @usage Manager.event[event_name] = nil -- clears the callback for that event
@@ -295,19 +307,21 @@ Manager.event = setmetatable({
     __metatable=false,
     __call=function(tbl,event_name,new_callback,...)
         if event_name == nil then return rawget(tbl,'__stop') end
+        if type(event_name) == 'table' then
+            for key,_event_name in pairs(event_name) do tbl(_event_name) end return
+        end
         event_name = tonumber(event_name) or tbl.names[event_name]
         if type(new_callback) == 'function' then
-            Manager.event[event_name] = new_callback
-            return
+            Manager.event[event_name] = new_callback return
         end
         if type(tbl[event_name]) == 'table' then
             for _module_name,callback in pairs(tbl[event_name]) do
                 if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'.._module_name..'"') end
-                _G.module_name = _module_name
+                setModuleName(_module_name)
                 local success, err = pcall(callback,new_callback,...)
                 if not success then Manager.verbose('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')','errorCaught') error('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')') end
                 if err == rawget(tbl,'__stop') then Manager.verbose('Event Haulted By: "'.._module_name..'"','errorCaught') break end
-                _G.module_name = nil
+                setModuleName(nil)
             end
         end
     end,
