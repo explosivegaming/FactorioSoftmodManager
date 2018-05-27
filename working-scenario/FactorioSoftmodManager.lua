@@ -8,30 +8,36 @@ local Manager = {}
 local ReadOnlyManager = setmetatable({},{
     __metatable=false,
     __index=function(tbl,key)
+        -- first looks in manager and then looks in mander.loadModules
         return rawget(Manager,key) ~= nil and rawget(Manager,key) or rawget(Manager.loadModules,key)
     end,
     __call=function(tbl)
+        -- if there are no modules loaded then it loads them
         if #tbl.loadModules == 0 then
             tbl.loadModules()
         end
     end,
     __newindex=function(tbl,key,value)
+        -- provents the changing of any key that is not currentState
         if key == 'currentState' then
+            -- provides a verbose that is always emited describing the change in state
             Manager.verbose('Current state is now: "'..value.. '"; The verbose state is now: '..tostring(Manager.setVerbose[value]),true) 
             rawset(Manager,key,value)
         else error('Manager is read only please use included methods',2)  end
     end,
     __tostring=function(tbl)
+        -- acts as a redirect
         return tostring(Manager.loadModules)
     end
 })
 local function setModuleName(name)
+    if name == nil then _G.module_name = nil return end
+    -- creates a table that acts like a string but is read only
     _G.module_name = setmetatable({},{
         __index=function(tbl,key) return name end,
-        __newindex=function(tbl,key,value) error('Module Name Is Read Only') end
+        __newindex=function(tbl,key,value) error('Module Name Is Read Only') end,
         __tostring=function(tbl) return name end,
-        __concat=function(tbl) return name end,
-        __eq=function(op1,op2) return name ~= nil end
+        __concat=function(tbl,val) return name..val end,
         __metatable=false,
     })
 end
@@ -43,10 +49,12 @@ Manager.currentState = 'selfInit'
 -- @usage Manager.verbose('Hello, World!')
 -- @tparm rtn string the value that will be returned though verbose output
 Manager._verbose = function(rtn)
+    -- creates one file per game, ie clears file on reset
     if game and Manager.setVerbose._output ~= true then Manager.setVerbose._output=true game.write_file('verbose.log',rtn)
     elseif game then game.write_file('verbose.log','\n'..rtn,true) end
+    -- standard print and log, _log is a version of log which is ln1 of control.lua for shorter log lines
     if print then print(rtn) end
-    if _log then _log(rtn) end -- _log is a call to first line of control.lua to shorten log lines
+    if _log then _log(rtn) end
 end
 
 --- Used to call the output of the verbose when the current state allows it
@@ -56,10 +64,14 @@ end
 Manager.verbose = function(rtn,action)
     local settings = Manager.setVerbose
     local state = Manager.currentState
+    -- if ran in a module the the global module_name is present
     if module_name then rtn='['..module_name..'] '..rtn 
     else rtn='[FSM] '..rtn end
+    -- module_verbose is a local override for a file, action is used in the manager to describe an extra type, state is the current state
+    -- if action is true then it will always trigger verbose
     if module_verbose or action and (action == true or settings[action]) or settings[state] then
         if type(settings.output) == 'function' then
+            -- calls the output function, not pcalled as if this fails some thing is very wrong
             settings.output(rtn)
         else
             error('Verbose set for: '..state..' but output can not be called',2)
@@ -86,6 +98,7 @@ Manager.setVerbose = setmetatable(
     {
         __metatable=false,
         __call=function(tbl,newTbl)
+            -- does not allow any new keys, but will override any existing ones
             for key,value in pairs(newTbl) do
                 if rawget(tbl,key) ~= nil then
                     Manager.verbose('Verbose for: "'..key..'" has been set to: '..tostring(value))
@@ -94,12 +107,15 @@ Manager.setVerbose = setmetatable(
             end
         end,
         __newindex=function(tbl,key,value)
+            -- stops creationg of new keys
             error('New settings cannot be added during runtime',2)
         end,
         __index=function(tbl,key)
+            -- will always return a value, never nil
             return rawget(tbl,key) or false
         end,
         __tostring=function(tbl)
+            -- a simple concat function for the settings
             local rtn = ''
             for key,value in pairs(tbl) do
                 if type(value) == 'boolean' then
@@ -110,7 +126,7 @@ Manager.setVerbose = setmetatable(
         end
     }
 )
--- call to verbose to show start up
+-- call to verbose to show start up, will always be present
 Manager.verbose('Current state is now: "selfInit"; The verbose state is: '..tostring(Manager.setVerbose.selfInit),true)
 
 --- Creates a sand box envorment and runs a callback in that sand box; provents global pollution
@@ -131,10 +147,7 @@ Manager.sandbox = setmetatable({
             -- creates a new sandbox env
             local sandbox = tbl()
             -- new indexs are saved into sandbox and if _G does not have the index then look in sandbox
-            setmetatable(_G,{
-                __index=sandbox,
-                __newindex=function(tbl,key,value) rawset(sandbox,key,value) end
-            })
+            setmetatable(_G,{__index=sandbox,__newindex=sandbox})
             -- runs the callback
             local rtn = {pcall(callback,...)}
             -- this is to allow modules to be access with out the need of using Mangaer[name] also keeps global clean
@@ -164,13 +177,15 @@ Manager.loadModules = setmetatable({},
                 local sandbox, success, module = Manager.sandbox(require,location)
                 setModuleName(nil)
                 _G.module_location = nil
-                -- extracts the module into global
+                -- extracts the module into a global index table for later use
                 if success then
+                    -- verbose to notifie of any globals that were attempted to be created
                     local globals = ''
                     for key,value in pairs(sandbox) do globals = globals..key..', ' end
                     if globals ~= '' then Manager.verbose('Globals caught in "'.._module_name..'": '..globals:sub(1,-3),'errorCaught') end
                     Manager.verbose('Successfully loaded: "'.._module_name..'"; Location: '..location)
-                    -- sets that it has been loaded and makes in global under module name
+                    -- sets that it has been loaded and adds to the loaded index
+                    -- if you prefere module_exports can be used rather than returning the module
                     if sandbox.module_exports and type(sandbox.module_exports) == 'table' 
                     then tbl[_module_name] = sandbox.module_exports
                     else tbl[_module_name] = table.remove(module,1) end
@@ -178,9 +193,12 @@ Manager.loadModules = setmetatable({},
                     Manager.verbose('Failed load: "'.._module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
                 end
             end
+            -- new state for the manager to allow control of verbose
             ReadOnlyManager.currentState = 'moduleInit'
             -- runs though all loaded modules looking for on_init function; all other modules have been loaded
             for _module_name,data in pairs(tbl) do
+                -- looks for init so that init or on_init can be used
+                if type(data) == 'table' and data.init and data.on_init == nil then data.on_init = data.init data.init = nil end
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
                     Manager.verbose('Initiating module: "'.._module_name)
                     _setModuleName(_module_name)
@@ -191,12 +209,15 @@ Manager.loadModules = setmetatable({},
                     else
                         Manager.verbose('Failed Initiation: "'.._module_name..'"; Location: '..location..' ('..err..')','errorCaught')
                     end
+                    -- clears the init function so it cant be used in runtime
                     data.on_init = nil
                 end
             end
+            -- this could also be called runtime
             ReadOnlyManager.currentState = 'moduleEnv'
         end,
         __len=function(tbl)
+            -- counts the number of loaded modules
             local rtn = 0
             for key,value in pairs(tbl) do
                 rtn = rtn + 1
@@ -204,6 +225,7 @@ Manager.loadModules = setmetatable({},
             return rtn
         end,
         __tostring=function(tbl)
+            -- a concat of all the loaded modules
             local rtn = 'Load Modules: '
             for key,value in pairs(tbl) do
                     rtn=rtn..key..', '
@@ -228,6 +250,7 @@ Manager.error = setmetatable({
     __error_call=error,
     __error_const={},
     __error_handler=function(handler_name,callback)
+        -- when handler_name is a string it is expeced that callback is a function; other wise handler_name must be a function
         if type(handler_name) == 'string' and type(callback) == 'function' then Manager.error[handler_name]=callback
         elseif type(handler_name) == 'function' then table.insert(Manager.error,handler_name)
         else Manager.error('Handler is not a function',2) end
@@ -235,34 +258,43 @@ Manager.error = setmetatable({
 },{
     __metatalbe=false,
     __call=function(tbl,err,...)
+        -- if no params then return the error constant
         if err == nil then return rawget(tbl,'__error_const') end
+        -- if the error constant is given crash game
         if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop','errorCaught') rawget(tbl,'__error_call')('Force Stop',2) end
+        -- other wise treat the call as if its been passed an err string
         if #tbl > 0 then
+            -- there is at least one error handler loaded; loops over the error handlers
             for handler_name,callback in pairs(tbl) do
                 local success, err = pcall(callback,err,...)
                 if not success then Manager.verbose('Error handler: "'..handler_name..'" failed to run ('..err..')','errorCaught') end
+                -- if the error constant is returned from the handler then crash the game
                 if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop by: '..handler_name,'errorCaught') rawget(tbl,'__error_call')('Force Stop by: '..handler_name) end
             end
         elseif game then
+            -- there are no handlers loaded so it will print to the game if loaded
             Manager.verbose('No error handlers loaded; Default game print used','errorCaught')
             game.print(err)
         else
+            -- all else fails it will crash the game with the error code
             Manager.verbose('No error handlers loaded; Game not loaded; Forced crash: '..err,'errorCaught')
             rawget(tbl,'__error_call')(err,2)
         end
     end,
     __index=function(tbl,key)
+        -- this allows the __error_handler to be called from many different names
         if key:lower() == 'addhandler' or key:lower() == 'sethandler' or key:lower() == 'handler' then return rawget(tbl,'__error_handler')
-        elseif key == '__error_call' or key == '__error_const' or key == '__error_handler' then tbl(key..' can not be indexed please use build in methods',2)
-        else return rawget(tbl,key) end
+        else rawget(tbl,'__error_call')('Invalid index for error handler; please use build in methods.') end
     end,
     __newindex=function(tbl,key,value)
+        -- making a new index adds it as a handler
         if type(value) == 'function' then 
             Manager.verbose('Added Error Handler: "'..key..'"','eventRegistered')
             rawset(tbl,key,value)
         end
     end,
     __len=function(tbl)
+        -- counts the number of handlers there are
         local rtn=0
         for handler_name,callback in pairs(tbl) do
             rtn=rtn+1
@@ -270,6 +302,7 @@ Manager.error = setmetatable({
         return rtn
     end,
     __pairs=function(tbl)
+        -- will not return any of the three core values as part of pairs
         local function next_pair(tbl,k)
             local v
             k, v = next(tbl, k)
@@ -299,6 +332,8 @@ Manager.event = setmetatable({
     __events={},
     __event=script.on_event,
     __generate=script.generate_event_name,
+    __get_handler=script.get_event_handler,
+    __raise=script.raise_event,
     __init=script.on_init,
     __load=script.on_load,
     __config=script.on_configuration_changed,
@@ -306,43 +341,59 @@ Manager.event = setmetatable({
 },{
     __metatable=false,
     __call=function(tbl,event_name,new_callback,...)
+        -- if no params then return the stop constant
         if event_name == nil then return rawget(tbl,'__stop') end
+        -- if the event name is a table then loop over each value in that table
         if type(event_name) == 'table' then
-            for key,_event_name in pairs(event_name) do tbl(_event_name) end return
+            for key,_event_name in pairs(event_name) do tbl(_event_name,new_callback,...) end return
         end
+        -- convert the event name to a number index
         event_name = tonumber(event_name) or tbl.names[event_name]
+        -- if there is a callback present then set new callback rather than raise the event
         if type(new_callback) == 'function' then
             Manager.event[event_name] = new_callback return
         end
+        -- other wise raise the event and call every callback; no use of script.raise_event due to override
         if type(tbl[event_name]) == 'table' then
             for _module_name,callback in pairs(tbl[event_name]) do
+                -- loops over the call backs and which module it is from
                 if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'.._module_name..'"') end
                 setModuleName(_module_name)
                 local success, err = pcall(callback,new_callback,...)
                 if not success then Manager.verbose('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')','errorCaught') error('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')') end
+                -- if stop constant is returned then stop further processing
                 if err == rawget(tbl,'__stop') then Manager.verbose('Event Haulted By: "'.._module_name..'"','errorCaught') break end
                 setModuleName(nil)
             end
         end
     end,
     __newindex=function(tbl,key,value)
+        -- handles the creation of new event handlers
         if type(value) ~= 'function' and type(value) ~= nil then error('Attempted to set a non function value to an event',2) end
+        -- checks for a global module name that is present
         local module_name = module_name or 'FSM'
+        -- converts the key to a number index for the event
         key = tonumber(key) or tbl.names[key]
         Manager.verbose('Added Handler: "'..tbl.names[key]..'"','errorCaught')
-        if not rawget(rawget(tbl,'__events'),key) then rawset(rawget(tbl,'__events'),key,{}) end
+        -- checks that the event has a valid table to store callbacks; if its not valid it will creat it and register a real event handler
+        if not rawget(rawget(tbl,'__events'),key) then rawget(tbl,'__event')(key,tbl) rawset(rawget(tbl,'__events'),key,{}) end
+        -- adds callback to Manager.event.__events[event_id][module_name]
         rawset(rawget(rawget(tbl,'__events'),key),module_name,value)
     end,
     __index=function(tbl,key)
+        -- proforms different look ups depentding weather the current module has an event handler registered
         if module_name then
+            -- first looks for the event callback table and then under the module name; does same but converts the key to a number; no handler regisered so returns the converted event id
             return rawget(rawget(tbl,'__events'),key) and rawget(rawget(rawget(tbl,'__events'),key),module_name)
             or rawget(rawget(tbl,'__events'),rawget(tbl,'names')[key]) and rawget(rawget(rawget(tbl,'__events'),rawget(tbl,'names')[key]),module_name) 
             or rawget(tbl,'names')[key]
         else
+            -- if there is no module present then it will return the full list of regisered handlers; or other wise the converted event id
             return rawget(rawget(tbl,'__events'),key) or rawget(rawget(tbl,'__events'),rawget(tbl,'names')[key]) or rawget(tbl,'names')[key]
         end
     end,
     __len=function(tbl)
+        -- counts every handler that is regised not just the the number of events with handlers
         local rtn=0
         for event,callbacks in pairs(tbl) do
             for module,callback in pairs(callbacks) do
@@ -352,6 +403,7 @@ Manager.event = setmetatable({
         return rtn
     end,
     __pairs=function(tbl)
+        -- will loops over the event handlers and not Manager.event
         local function next_pair(tbl,k)
             k, v = next(rawget(tbl,'__events'), k)
             if type(v) == 'table' then return k,v end
@@ -364,7 +416,9 @@ Manager.event = setmetatable({
 rawset(Manager.event,'names',setmetatable({},{
     __index=function(tbl,key)
         if type(key) == 'number' or tonumber(key) then
+            -- if it is a number then it will first look in the chache
             if rawget(tbl,key) then return rawget(tbl,key) end
+            -- if it is a core event then it will simply return
             if key == 'on_init' or key == 'init' then
                 rawset(tbl,key,-1)
             elseif key == 'on_load' or key == 'load' then
@@ -372,13 +426,33 @@ rawset(Manager.event,'names',setmetatable({},{
             elseif key == 'on_configuration_changed' or key == 'configuration_changed' then
                 rawset(tbl,key,-3)
             else
+                -- if it is not a core event then it does a value look up on Manager.events aka defines.events
                 for event,id in pairs(rawget(Manager.event,'events')) do
                     if id == key then rawset(tbl,key,event) end
                 end
             end
+            -- returns the value from the chache after being loaded in
             return rawget(tbl,key)
+            -- if it is a string then no reverse look up is required
         else return rawget(rawget(Manager.event,'events'),key) end
     end
 }))
+--over rides for the base values; can be called though Event
+Event=Manager.event
+script.mod_name = setmetatable({},{
+    __index=function(tbl,key) return _G.module_name end,
+    __newindex=function(tbl,key,value) error('Module Name Is Read Only') end,
+    __tostring=function(tbl) return _G.module_name end,
+    __concat=function(tbl,val) return _G.module_name..val end,
+    __metatable=false,
+})
+script.on_event=Manager.event
+script.raise_event=Manager.event
+script.on_init=function(callback) Manager.event(-1,callback) end
+script.on_load=function(callback) Manager.event(-2,callback) end
+script.on_configuration_changed=function(callback) Manager.event(-3,callback) end
+script.get_event_handler=function(event_name) return type(Manager.event[event_name]) == 'function' and Manager.event[event_name] or nil end
+-- to do custom events
+-- to do set up nth tick
 
 return ReadOnlyManager
