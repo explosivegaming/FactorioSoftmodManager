@@ -376,7 +376,7 @@ Manager.event = setmetatable({
         key = tonumber(key) or tbl.names[key]
         Manager.verbose('Added Handler: "'..tbl.names[key]..'"','errorCaught')
         -- checks that the event has a valid table to store callbacks; if its not valid it will creat it and register a real event handler
-        if not rawget(rawget(tbl,'__events'),key) then rawget(tbl,'__event')(key,tbl) rawset(rawget(tbl,'__events'),key,{}) end
+        if not rawget(rawget(tbl,'__events'),key) then rawget(tbl,'__event')(key,function(...) tbl(...) end) rawset(rawget(tbl,'__events'),key,{}) end
         -- adds callback to Manager.event.__events[event_id][module_name]
         rawset(rawget(rawget(tbl,'__events'),key),module_name,value)
     end,
@@ -452,7 +452,7 @@ script.on_init=function(callback) Manager.event(-1,callback) end
 script.on_load=function(callback) Manager.event(-2,callback) end
 script.on_configuration_changed=function(callback) Manager.event(-3,callback) end
 script.get_event_handler=function(event_name) return type(Manager.event[event_name]) == 'function' and Manager.event[event_name] or nil end
--- to do custom events
+script.generate_event_name=function(event_name) local event_id = Manager.event.__generate() local event_name = event_name or event_id Manager.event.events[event_name]=event_id return event_id end
 -- to do set up nth tick
 
 return ReadOnlyManager
