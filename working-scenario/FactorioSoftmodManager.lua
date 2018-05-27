@@ -128,8 +128,8 @@ Manager.sandbox = setmetatable({
             })
             -- runs the callback
             local rtn = {pcall(callback,...)}
-            -- resets the global metatable to avoid conflict
-            setmetatable(_G,{})
+            -- this is to allow modules to be access with out the need of using Mangaer[name] also keeps global clean
+            setmetatable(_G,{__index=ReadOnlyManager})
             return sandbox, table.remove(rtn,1), rtn
         else return setmetatable({},{__index=tbl}) end
     end
@@ -150,9 +150,9 @@ Manager.loadModules = setmetatable({},
             for _module_name,location in pairs (moduleIndex) do
                 Manager.verbose('Loading module: "'.._module_name..'"; Location: '..location)
                 -- runs the module in a sandbox env
-                _G.module_name = _module_name
+                _G.module_name,_G.module_location = _module_name,location
                 local sandbox, success, module = Manager.sandbox(require,location)
-                _G.module_name = nil
+                _G.module_name,_G.module_location  = nil,nil
                 -- extracts the module into global
                 if success then
                     local globals = ''
@@ -163,21 +163,22 @@ Manager.loadModules = setmetatable({},
                     if sandbox.module_exports and type(sandbox.module_exports) == 'table' 
                     then tbl[_module_name] = sandbox.module_exports
                     else tbl[_module_name] = table.remove(module,1) end
-                    rawset(_G,_module_name,tbl[_module_name])
                 else
                     Manager.verbose('Failed load: "'.._module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
                 end
             end
             ReadOnlyManager.currentState = 'moduleInit'
             -- runs though all loaded modules looking for on_init function; all other modules have been loaded
-            for module_name,data in pairs(tbl) do
+            for _module_name,data in pairs(tbl) do
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
-                    Manager.verbose('Initiating module: "'..module_name)
+                    Manager.verbose('Initiating module: "'.._module_name)
+                    _G.module_name = _module_name
                     local success, err = pcall(data.on_init)
+                    _G.module_name = nil
                     if success then
-                        Manager.verbose('Successfully Initiated: "'..module_name..'"; Location: '..location)
+                        Manager.verbose('Successfully Initiated: "'.._module_name..'"; Location: '..location)
                     else
-                        Manager.verbose('Failed Initiation: "'..module_name..'"; Location: '..location..' ('..err..')','errorCaught')
+                        Manager.verbose('Failed Initiation: "'.._module_name..'"; Location: '..location..' ('..err..')','errorCaught')
                     end
                     data.on_init = nil
                 end
@@ -269,5 +270,101 @@ Manager.error = setmetatable({
 })
 -- overrides the default error function
 error=Manager.error
+
+--- Event handler that modules can use, each module can register one function per event
+-- @usage Manager.event[event_name] = callback -- sets the callback for that event
+-- @usage Manager.event[event_name] = nil -- clears the callback for that event
+-- @usage Manager.event(event_name,callback) -- sets the callback for that event
+-- @usage Manager.event[event_name] -- returns the callback for that event or the event id if not registered
+-- @usage Manager.event(event_name) -- runs all the call backs for that event
+-- @tparam event_name int|string index that referes to an event
+-- @tparam callback function the function that will be set for that event
+-- @usage Manager.event() -- returns the stop value for the event proccessor, if returned during an event will stop all other callbacks
+-- @usage #Manager.event -- returns the number of callbacks that are registered
+-- @usage pairs(Manager.events) -- returns event_id,table of callbacks
+Manager.event = setmetatable({
+    __stop={},
+    __events={},
+    __event=script.on_event,
+    __generate=script.generate_event_name,
+    __init=script.on_init,
+    __load=script.on_load,
+    __config=script.on_configuration_changed,
+    events=defines.events
+},{
+    __metatable=false,
+    __call=function(tbl,event_name,new_callback,...)
+        if event_name == nil then return rawget(tbl,'__stop') end
+        event_name = tonumber(event_name) or tbl.names[event_name]
+        if type(new_callback) == 'function' then
+            Manager.event[event_name] = new_callback
+            return
+        end
+        if type(tbl[event_name]) == 'table' then
+            for _module_name,callback in pairs(tbl[event_name]) do
+                if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'.._module_name..'"') end
+                _G.module_name = _module_name
+                local success, err = pcall(callback,new_callback,...)
+                if not success then Manager.verbose('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')','errorCaught') error('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')') end
+                if err == rawget(tbl,'__stop') then Manager.verbose('Event Haulted By: "'.._module_name..'"','errorCaught') break end
+                _G.module_name = nil
+            end
+        end
+    end,
+    __newindex=function(tbl,key,value)
+        if type(value) ~= 'function' and type(value) ~= nil then error('Attempted to set a non function value to an event',2) end
+        local module_name = module_name or 'FSM'
+        key = tonumber(key) or tbl.names[key]
+        Manager.verbose('Added Handler: "'..tbl.names[key]..'"','errorCaught')
+        if not rawget(rawget(tbl,'__events'),key) then rawset(rawget(tbl,'__events'),key,{}) end
+        rawset(rawget(rawget(tbl,'__events'),key),module_name,value)
+    end,
+    __index=function(tbl,key)
+        if module_name then
+            return rawget(rawget(tbl,'__events'),key) and rawget(rawget(rawget(tbl,'__events'),key),module_name)
+            or rawget(rawget(tbl,'__events'),rawget(tbl,'names')[key]) and rawget(rawget(rawget(tbl,'__events'),rawget(tbl,'names')[key]),module_name) 
+            or rawget(tbl,'names')[key]
+        else
+            return rawget(rawget(tbl,'__events'),key) or rawget(rawget(tbl,'__events'),rawget(tbl,'names')[key]) or rawget(tbl,'names')[key]
+        end
+    end,
+    __len=function(tbl)
+        local rtn=0
+        for event,callbacks in pairs(tbl) do
+            for module,callback in pairs(callbacks) do
+                rtn=rtn+1
+            end
+        end
+        return rtn
+    end,
+    __pairs=function(tbl)
+        local function next_pair(tbl,k)
+            k, v = next(rawget(tbl,'__events'), k)
+            if type(v) == 'table' then return k,v end
+        end
+        return next_pair, tbl, nil
+    end
+})
+--- Sub set to Manger.event and acts as a coverter between event_name and event_id
+-- @usage Manager.event[event_name] -- see above, can not be accessed via Manager.event.names
+rawset(Manager.event,'names',setmetatable({},{
+    __index=function(tbl,key)
+        if type(key) == 'number' or tonumber(key) then
+            if rawget(tbl,key) then return rawget(tbl,key) end
+            if key == 'on_init' or key == 'init' then
+                rawset(tbl,key,-1)
+            elseif key == 'on_load' or key == 'load' then
+                rawset(tbl,key,-2)
+            elseif key == 'on_configuration_changed' or key == 'configuration_changed' then
+                rawset(tbl,key,-3)
+            else
+                for event,id in pairs(rawget(Manager.event,'events')) do
+                    if id == key then rawset(tbl,key,event) end
+                end
+            end
+            return rawget(tbl,key)
+        else return rawget(rawget(Manager.event,'events'),key) end
+    end
+}))
 
 return ReadOnlyManager
