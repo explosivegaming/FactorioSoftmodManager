@@ -201,13 +201,13 @@ Manager.loadModules = setmetatable({},
                 if type(data) == 'table' and data.init and data.on_init == nil then data.on_init = data.init data.init = nil end
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
                     Manager.verbose('Initiating module: "'.._module_name)
-                    _setModuleName(_module_name)
-                    local success, err = pcall(data.on_init)
+                    setModuleName(_module_name)
+                    local success, err = pcall(data.on_init,data)
                     setModuleName(nil)
                     if success then
-                        Manager.verbose('Successfully Initiated: "'.._module_name..'"; Location: '..location)
+                        Manager.verbose('Successfully Initiated: "'.._module_name..'"')
                     else
-                        Manager.verbose('Failed Initiation: "'.._module_name..'"; Location: '..location..' ('..err..')','errorCaught')
+                        Manager.verbose('Failed Initiation: "'.._module_name..'" ('..err..')','errorCaught')
                     end
                     -- clears the init function so it cant be used in runtime
                     data.on_init = nil
@@ -438,7 +438,7 @@ rawset(Manager.event,'names',setmetatable({},{
     end
 }))
 --over rides for the base values; can be called though Event
-Event=Manager.event
+Event=setmetatable({},{__index=function(tbl,key) return Manager.event[key] or script[key] or error('Invalid Index To Table Event') end})
 script.mod_name = setmetatable({},{
     __index=function(tbl,key) return _G.module_name end,
     __newindex=function(tbl,key,value) error('Module Name Is Read Only') end,
