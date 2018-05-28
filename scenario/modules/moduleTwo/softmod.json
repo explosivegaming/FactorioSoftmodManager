@@ -1,7 +1,7 @@
 {
-    "__comment": "when the file is downloaded the softmod.json will be renamed to match the module name",
-    "__comment2": "this will allow more than one module main in the same folder while allowing each to have its own json file",
+    "__comment": "the module is what will be used to index the module from the lua, ie module.function not name.function",
     "name": "moduleTwo",
+    "module": "moduleTwo",
     "description": "Testing",
     "keywords": [],
     "version": "1.0.0",

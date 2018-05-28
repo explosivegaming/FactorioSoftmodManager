@@ -186,9 +186,31 @@ Manager.loadModules = setmetatable({},
                     Manager.verbose('Successfully loaded: "'.._module_name..'"; Location: '..location)
                     -- sets that it has been loaded and adds to the loaded index
                     -- if you prefere module_exports can be used rather than returning the module
-                    if sandbox.module_exports and type(sandbox.module_exports) == 'table' 
-                    then tbl[_module_name] = sandbox.module_exports
-                    else tbl[_module_name] = table.remove(module,1) end
+                    if type(tbl[_module_name]) == 'nil' then
+                        -- if it is a new module then creat the new index
+                        if sandbox.module_exports and type(sandbox.module_exports) == 'table'
+                        then tbl[_module_name] = sandbox.module_exports
+                        else tbl[_module_name] = table.remove(module,1) end
+                    elseif type(tbl[_module_name]) == 'table' then
+                        -- if this module adds onto an existing one then append the keys
+                        if sandbox.module_exports and type(sandbox.module_exports) == 'table'
+                        then for key,value in pairs(sandbox.module_exports) do tbl[_module_name][key] = value end
+                        else for key,value in pairs(table.remove(module,1)) do tbl[_module_name][key] = value end end
+                    else
+                        -- if it is a function then it is still able to be called even if more keys are going to be added
+                        -- if it is a string then it will act like one; if it is a number well thats too many metatable indexs
+                        tbl[_module_name] = setmetatable({__old=tbl[_module_name]},{
+                            __call=function(tbl,...) if type(tbl.__old) == 'function' then tbl.__old(...) else return tbl.__old end end,
+                            __tostring=function(tbl) return tbl.__old end,
+                            __concat=function(tbl,val) return tbl.__old..val end
+                        })
+                        -- same as above for adding the keys to the table
+                        if sandbox.module_exports and type(sandbox.module_exports) == 'table'
+                        then for key,value in pairs(sandbox.module_exports) do tbl[_module_name][key] = value end
+                        else for key,value in pairs(table.remove(module,1)) do tbl[_module_name][key] = value end end
+                    end
+                    -- if there is a module by this name in _G ex table then it will be indexed to the new module
+                    if rawget(_G,_module_name) then setmetatable(rawget(_G,_module_name),{__index=tbl[_module_name]})
                 else
                     Manager.verbose('Failed load: "'.._module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
                 end

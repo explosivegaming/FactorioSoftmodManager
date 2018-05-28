@@ -124,7 +124,7 @@ function ExpLib.Gui_tree(root)
 end
 
 function ExpLib.on_init(self)
-    ExpLib._unpack_to_G(self)
+    self._unpack_to_G(self)
 end
 
 return ExpLib

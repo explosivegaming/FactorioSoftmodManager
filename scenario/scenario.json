@@ -1,6 +1,6 @@
 {
   "name": "TestScenario",
-  "display": "Test Scenario",
+  "description": "Test Scenario",
   "version": "1.0.0",
   "modules": {
     "ErrorHandlers": ">1.0.0",
