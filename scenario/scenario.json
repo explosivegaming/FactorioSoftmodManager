@@ -1,0 +1,10 @@
+{
+  "name": "TestScenario",
+  "display": "Test Scenario",
+  "version": "1.0.0",
+  "modules": {
+    "ErrorHandlers": ">1.0.0",
+    "moduleOne": ">1.0.0",
+    "moduleTwo": ">1.0.0"
+  }
+}
