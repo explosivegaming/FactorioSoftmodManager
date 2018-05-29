@@ -30,14 +30,13 @@ local ReadOnlyManager = setmetatable({},{
         return tostring(Manager.loadModules)
     end
 })
-local function setModuleName(name)
-    if name == nil then _G.module_name = nil return end
+local function setupModuleName(name)
     -- creates a table that acts like a string but is read only
-    _G.module_name = setmetatable({},{
+    return setmetatable({},{
         __index=function(tbl,key) return name end,
         __newindex=function(tbl,key,value) error('Module Name Is Read Only') end,
         __tostring=function(tbl) return name end,
-        __concat=function(tbl,val) return name..val end,
+        __concat=function(val1,val2) return type(val1) == 'string' and val1..name or name..val2 end,
         __metatable=false,
     })
 end
@@ -142,17 +141,20 @@ Manager.sandbox = setmetatable({
     module_exports=false
 },{
     __metatable=false,
-    __call=function(tbl,callback,...)
+    __call=function(tbl,callback,env,...)
         if type(callback) == 'function' then 
             -- creates a new sandbox env
             local sandbox = tbl()
             -- new indexs are saved into sandbox and if _G does not have the index then look in sandbox
-            setmetatable(_G,{__index=sandbox,__newindex=sandbox})
+            setmetatable(env,{__index=sandbox})
+            setmetatable(_G,{__index=env,__newindex=sandbox})
             -- runs the callback
             local rtn = {pcall(callback,...)}
+            local success = table.remove(rtn,1)
             -- this is to allow modules to be access with out the need of using Mangaer[name] also keeps global clean
             setmetatable(_G,{__index=ReadOnlyManager})
-            return sandbox, table.remove(rtn,1), rtn
+            if success then return sandbox, success, rtn
+            else return sandbox, success, rtn[1] end
         else return setmetatable({},{__index=tbl}) end
     end
 })
@@ -169,67 +171,61 @@ Manager.loadModules = setmetatable({},
             -- ReadOnlyManager used to trigger verbose change
             ReadOnlyManager.currentState = 'moduleLoad'
             -- goes though the index looking for modules
-            for _module_name,location in pairs (moduleIndex) do
-                Manager.verbose('Loading module: "'.._module_name..'"; Location: '..location)
+            for module_name,location in pairs (moduleIndex) do
+                Manager.verbose('Loading module: "'..module_name..'"; Location: '..location)
                 -- runs the module in a sandbox env
-                setModuleName(_module_name)
-                _G.module_location = location
-                local sandbox, success, module = Manager.sandbox(require,location)
-                setModuleName(nil)
-                _G.module_location = nil
+                local sandbox, success, module = Manager.sandbox(require,{module_name=setupModuleName(module_name),module_location=location},location)
                 -- extracts the module into a global index table for later use
                 if success then
                     -- verbose to notifie of any globals that were attempted to be created
                     local globals = ''
                     for key,value in pairs(sandbox) do globals = globals..key..', ' end
-                    if globals ~= '' then Manager.verbose('Globals caught in "'.._module_name..'": '..globals:sub(1,-3),'errorCaught') end
-                    Manager.verbose('Successfully loaded: "'.._module_name..'"; Location: '..location)
+                    if globals ~= '' then Manager.verbose('Globals caught in "'..module_name..'": '..globals:sub(1,-3),'errorCaught') end
+                    Manager.verbose('Successfully loaded: "'..module_name..'"; Location: '..location)
                     -- sets that it has been loaded and adds to the loaded index
                     -- if you prefere module_exports can be used rather than returning the module
-                    if type(tbl[_module_name]) == 'nil' then
+                    if type(tbl[module_name]) == 'nil' then
                         -- if it is a new module then creat the new index
                         if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                        then tbl[_module_name] = sandbox.module_exports
-                        else tbl[_module_name] = table.remove(module,1) end
-                    elseif type(tbl[_module_name]) == 'table' then
+                        then tbl[module_name] = sandbox.module_exports
+                        else tbl[module_name] = table.remove(module,1) end
+                    elseif type(tbl[module_name]) == 'table' then
                         -- if this module adds onto an existing one then append the keys
                         if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                        then for key,value in pairs(sandbox.module_exports) do tbl[_module_name][key] = value end
-                        else for key,value in pairs(table.remove(module,1)) do tbl[_module_name][key] = value end end
+                        then for key,value in pairs(sandbox.module_exports) do tbl[module_name][key] = value end
+                        else for key,value in pairs(table.remove(module,1)) do tbl[module_name][key] = value end end
                     else
                         -- if it is a function then it is still able to be called even if more keys are going to be added
                         -- if it is a string then it will act like one; if it is a number well thats too many metatable indexs
-                        tbl[_module_name] = setmetatable({__old=tbl[_module_name]},{
+                        tbl[module_name] = setmetatable({__old=tbl[module_name]},{
                             __call=function(tbl,...) if type(tbl.__old) == 'function' then tbl.__old(...) else return tbl.__old end end,
                             __tostring=function(tbl) return tbl.__old end,
                             __concat=function(tbl,val) return tbl.__old..val end
                         })
                         -- same as above for adding the keys to the table
                         if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                        then for key,value in pairs(sandbox.module_exports) do tbl[_module_name][key] = value end
-                        else for key,value in pairs(table.remove(module,1)) do tbl[_module_name][key] = value end end
+                        then for key,value in pairs(sandbox.module_exports) do tbl[module_name][key] = value end
+                        else for key,value in pairs(table.remove(module,1)) do tbl[module_name][key] = value end end
                     end
                     -- if there is a module by this name in _G ex table then it will be indexed to the new module
-                    if rawget(_G,_module_name) then setmetatable(rawget(_G,_module_name),{__index=tbl[_module_name]})
+                    if rawget(_G,module_name) then setmetatable(rawget(_G,module_name),{__index=tbl[module_name]}) end
                 else
-                    Manager.verbose('Failed load: "'.._module_name..'"; Location: '..location..' ('..table.remove(module,1)..')','errorCaught')
+                    Manager.verbose('Failed load: "'..module_name..'"; Location: '..location..' ('..module..')','errorCaught')
                 end
             end
             -- new state for the manager to allow control of verbose
             ReadOnlyManager.currentState = 'moduleInit'
             -- runs though all loaded modules looking for on_init function; all other modules have been loaded
-            for _module_name,data in pairs(tbl) do
+            for module_name,data in pairs(tbl) do
                 -- looks for init so that init or on_init can be used
                 if type(data) == 'table' and data.init and data.on_init == nil then data.on_init = data.init data.init = nil end
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
-                    Manager.verbose('Initiating module: "'.._module_name)
-                    setModuleName(_module_name)
-                    local success, err = pcall(data.on_init,data)
-                    setModuleName(nil)
+                    Manager.verbose('Initiating module: "'..module_name)
+                    local sandbox, success, err = Manager.sandbox(data.on_init,{module_name=setupModuleName(module_name)},data)
                     if success then
-                        Manager.verbose('Successfully Initiated: "'.._module_name..'"')
+                        Manager.verbose('Successfully Initiated: "'..module_name..'"')
                     else
-                        Manager.verbose('Failed Initiation: "'.._module_name..'" ('..err..')','errorCaught')
+                        Manager.verbose('Failed Initiation: "'..module_name..'" ('..err..')','errorCaught')
                     end
                     -- clears the init function so it cant be used in runtime
                     data.on_init = nil
@@ -305,7 +301,7 @@ Manager.error = setmetatable({
     end,
     __index=function(tbl,key)
         -- this allows the __error_handler to be called from many different names
-        if key:lower() == 'addhandler' or key:lower() == 'sethandler' or key:lower() == 'handler' then return rawget(tbl,'__error_handler')
+        if key:lower() == 'addhandler' or key:lower() == 'sethandler' or key:lower() == 'handler' or key:lower() == 'register' then return rawget(tbl,'__error_handler')
         else rawget(tbl,'__error_call')('Invalid index for error handler; please use build in methods.') end
     end,
     __newindex=function(tbl,key,value)
@@ -377,15 +373,13 @@ Manager.event = setmetatable({
         end
         -- other wise raise the event and call every callback; no use of script.raise_event due to override
         if type(tbl[event_name]) == 'table' then
-            for _module_name,callback in pairs(tbl[event_name]) do
+            for module_name,callback in pairs(tbl[event_name]) do
                 -- loops over the call backs and which module it is from
-                if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'.._module_name..'"') end
-                setModuleName(_module_name)
-                local success, err = pcall(callback,new_callback,...)
-                if not success then Manager.verbose('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')','errorCaught') error('Event Failed: "'..event_name..'/'.._module_name..'" ('..err..')') end
+                if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'..module_name..'"') end
+                local sandbox, success, err = Manager.sandbox(callback,{module_name=setupModuleName(module_name)},new_callback,...)
+                if not success then Manager.verbose('Event Failed: "'..tbl.names[event_name]..'/'..module_name..'" ('..err..')','errorCaught') error('Event Failed: "'..event_name..'/'..module_name..'" ('..err..')') end
                 -- if stop constant is returned then stop further processing
-                if err == rawget(tbl,'__stop') then Manager.verbose('Event Haulted By: "'.._module_name..'"','errorCaught') break end
-                setModuleName(nil)
+                if err == rawget(tbl,'__stop') then Manager.verbose('Event Haulted By: "'..module_name..'"','errorCaught') break end
             end
         end
     end,

@@ -1,7 +1,7 @@
 return {
     ['moduleOne']='/modules/ModuleOne/control',
     ['moduleTwo']='/modules/ModuleTwo/control',
-    ['errorHandler']='/modules/ErrorHandlers/control',
+    ['errorHandler']='/modules/ErrorHandler/control',
     ['Game']='/modules/StdLib/game',
     ['Color']='/modules/StdLib/color',
     ['Time']='/modules/StdLib/time',
