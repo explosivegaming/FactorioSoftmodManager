@@ -1,0 +1,21 @@
+{
+    "name": "Module Name - This is unique name that is given to this module",
+    "module": "ModuleName - This is how other modules will be to access this module ie ModuleName.foo()",
+    "description": "Description - A small description that will be displayed on the cli",
+    "__comment_keywords": "An array of strings that describe the module",
+    "keywords": ["Tag1","Tag2"],
+    "version": "X.Y.Z - Always in the format <majour>.<minor>.<patch>",
+    "location": "url - The url where the module can be downloaded from, must only be this module",
+    "__comment_dependencies": "This key must always be present but can be empty ie {}",
+    "dependencies": {
+        "CollectionOne.ModuleOne": "X.Y.Z - Get the submodule ModuleOne which is part of the CollectionOne collection",
+        "ModuleTwo": "X.Y.Z - This exact version of the module, version must be avible",
+        "ModuleThree": ">X.Y.Z - Any version after this version",
+        "ModuleFour": "<X.Y.Z - Any version before this version",
+        "ModuleFive": ">=X.Y.Z - Recommend to use, this version or any version after, works with <= for this or before",
+        "ModuleSix": "?X.Y.Z - This dependencie is optional, can be added onto any of the above"
+    },
+    "author": "Name - The author or team behind this module",
+    "contact": "link - The way that people should contact the author to report bugs or suggestions, eg: email, discord, website, or any other details",
+    "license": "link - Either a link to the module's license (ie on git) or path to file from module root if included"
+}
