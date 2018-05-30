@@ -1,0 +1,44 @@
+{
+    "name": "Collection Name - This is name is unqiue and is appended before every submodule followed by a dot eg 'Collection Name.Module'",
+    "module": "Collection - This must be 'Collection' to indicate that this contains no code to run",
+    "description": "Description - A small description that will be displayed on the cli",
+    "__comment_keywords": "An array of strings that describe the collection",
+    "keywords": ["Tag1","Tag2"],
+    "version": "X.Y.Z - Always in the format <majour>.<minor>.<patch> this sould be the lowest version of any submodule",
+    "location": "url - The url where every submodule can be downloaded at once",
+    "__comment_submodules": "A table that contains every included submodule that is avible, indexed by the module name, softmod.json is not required in these submodules",
+    "submodules": {
+        "Module Name": {
+            "name": "Module Name - This is unique name with in this collection",
+            "module": "ModuleName - This is how other modules will be to access this module ie ModuleName.foo()",
+            "description": "Description - A small description that will be displayed on the cli",
+            "__comment_keywords": "An array of strings that describe the module",
+            "keywords": ["Tag1","Tag2"],
+            "version": "X.Y.Z - Always in the format <majour>.<minor>.<patch>",
+            "location": "url - The url where the module can be downloaded from, must only be this module",
+            "__comment_dependencies": "This key must always be present but can be empty ie {}",
+            "dependencies": {
+                "CollectionOne.ModuleOne": "X.Y.Z - Even when getting modules from the same collection it must still use the full name",
+                "ModuleTwo": "X.Y.Z - Getting modules that are not in this collection is the same as any other module"
+            },
+            "__comment_extra_info": "The propites of author, contact and license are extracted from the collection of this module"
+        },
+        "Module Two Name": {
+            "name": "Module Two Name - This is unique name with in this collection",
+            "module": "ModuleTwoName - This is how other modules will be to access this module ie ModuleName.foo()",
+            "description": "Description - A small description that will be displayed on the cli",
+            "__comment_keywords": "An array of strings that describe the module",
+            "keywords": ["Tag1","Tag2"],
+            "version": "X.Y.Z - Always in the format <majour>.<minor>.<patch>",
+            "location": "url - The url where the module can be downloaded from, must only be this module",
+            "__comment_dependencies": "This key must always be present but can be empty ie {}",
+            "dependencies": {
+                "__comment_different_dependencies": "Each submodule can have its own set of dependencies including other modules in its collection"
+            },
+            "__comment_extra_info": "The propites of author, contact and license are extracted from the collection of this module"
+        }
+    },
+    "author": "Name - The author or team behind this module",
+    "contact": "link - The way that people should contact the author to report bugs or suggestions, eg: email, discord, website, or any other details",
+    "license": "link - Either a link to the module's license (ie on git) or path to file from module root if included"
+}

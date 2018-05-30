@@ -1,0 +1,20 @@
+{
+    "__comment_secnario": "This file is to be used to easily share modules intented to work together and is the first file read by FSM",
+    "name": "Scenario Name - This is name is unqiue and is appended before every submodule followed by a dot eg 'Collection Name.Module'",
+    "module": "Scenario - This must be 'Scenario' to indicate that this is the root and will be used to indicate which modules are wanted",
+    "description": "Description - A small description that will be displayed on the cli",
+    "__comment_keywords": "An array of strings that describe the scenario",
+    "keywords": ["Tag1","Tag2"],
+    "version": "X.Y.Z - Always in the format <majour>.<minor>.<patch> this the version of factorio it was intented to be used for",
+    "__comment_modules": "This is a table of all the modules and there version to be downloaded and installed, entire collections can be listed to require every submodule",
+    "modules": {
+        "moduleOne": "X.Y.Z",
+        "moduleTwo": "X.Y.Z",
+        "moduleThree": "X.Y.Z",
+        "CollectionOne": "X.Y.Z",
+        "CollectionTwo.moduleOne": "X.Y.Z"
+    },
+    "author": "Name - The author or team behind this module",
+    "contact": "link - The way that people should contact the author to report bugs or suggestions, eg: email, discord, website, or any other details",
+    "license": "link - Either a link to the module's license (ie on git) or path to file from module root if included"
+}
