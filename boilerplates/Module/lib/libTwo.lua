@@ -6,6 +6,9 @@
 
 -- notice that it is now labled as submodule, if you wish this to be in its own category (if it is large submodule) then use module and name it "Module Name.Submodule Name"
 
+--- This file will be loaded when OptianlModule is present
+-- @function _comment
+ 
 --- Funcation C
 -- @usage ModuleName.fun() -- returns 'foo'
 -- @treturn string 'fun'
