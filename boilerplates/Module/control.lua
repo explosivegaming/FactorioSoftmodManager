@@ -23,7 +23,7 @@ local module_verbose = false --true|false
 
 
 -- how to require files, note that the module (var ModuleName) will not be present during the require so it is recomened that extentions of the module be done durin on_init
-local libOne = require(module_path..'/lib/libOne')
+local libOne = require(module_path..'/src/libOne')
 
 --- Funcation A
 -- @usage ModuleName.foo() -- returns 'foo'
@@ -48,7 +48,7 @@ end)
 -- @local Creating a function called on_init will be ran by the manager once all other modules are loaded, you are able to test for optianl dependies or extend this module
 function ModuleName:on_init()
     -- this file will extent the module during on_init so can be used to load more function if an optianl dependie if present, or to run a test file
-    if loaded_modules.OptianlModule then require(module_path..'/lib/libTwo') end
+    if loaded_modules.OptianlModule then require(module_path..'/src/libTwo') end
 end
 
 -- return the module if needed, it will be appended to modules of the same name if there are modules which add to this one
