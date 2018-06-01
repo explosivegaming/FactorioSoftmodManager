@@ -24,7 +24,11 @@ local module_verbose = false --true|false
 
 -- how to require files, note that the module (var ModuleName) will not be present during the require so it is recomened that extentions of the module be done durin on_init
 local libOne = require(module_path..'/src/libOne')
-local global = Manager.global() -- this is optinal but will auto manage the global table
+--- Global Table
+-- @table global
+local global = global{
+    default=true -- if this is the default - this is how to comment the table
+}
 
 --- Funcation A
 -- @usage ModuleName.foo() -- returns 'foo'
