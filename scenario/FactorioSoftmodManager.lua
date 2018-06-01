@@ -156,9 +156,7 @@ Manager.global=setmetatable({__defaults={},__global={
     __index=function(tbl,key) return Manager.global() == tbl and nil or rawget(Manager.global(),key) end,
     __newindex=function(tbl,key,value) rawset(Manager.global(),key,value) end,
     __pairs=function(tbl)
-        Manager.verbose('Global Pair 1')
         local tbl = Manager.global()
-        Manager.verbose('Global Pair 2')
         local function next_pair(tbl,k)
             k, v = next(tbl, k)
             if type(v) ~= nil then return k,v end
