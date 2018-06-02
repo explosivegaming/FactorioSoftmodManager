@@ -150,7 +150,8 @@ Manager.verbose('Current state is now: "selfInit"; The verbose state is: '..tost
 -- @usage global[key] -- used like the normal global table
 -- @usage global{'foo','bar'} -- sets the default value
 -- @usage global(true) -- restores global to default
--- @usage global(mopdule_name) -- returns that module's global
+-- @usage global(module_name) -- returns that module's global
+-- @usage global.module_name -- returns that module's global
 -- @tparam[opt={}] ?table|string|true if table then the default for the global, if a string then the module to get the global of, if true then reset the global to default
 -- @treturn table the new global table for that module
 Manager.global=setmetatable({__defaults={},__global={
