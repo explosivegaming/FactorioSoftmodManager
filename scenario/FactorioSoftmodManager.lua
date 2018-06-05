@@ -69,6 +69,7 @@ end
 Manager.verbose = function(rtn,action)
     local settings = Manager.setVerbose
     local state = Manager.currentState
+    if Manager.error and state == Manager.error.__crash then return end
     -- if ran in a module the the global module_name is present
     local rtn = type(rtn) == table and serpent.line(rtn) or tostring(rtn)
     if module_name then rtn='['..module_name..'] '..rtn
@@ -150,8 +151,7 @@ Manager.verbose('Current state is now: "selfInit"; The verbose state is: '..tost
 -- @usage global[key] -- used like the normal global table
 -- @usage global{'foo','bar'} -- sets the default value
 -- @usage global(true) -- restores global to default
--- @usage global(module_name) -- returns that module's global
--- @usage global.module_name -- returns that module's global
+-- @usage global(mopdule_name) -- returns that module's global
 -- @tparam[opt={}] ?table|string|true if table then the default for the global, if a string then the module to get the global of, if true then reset the global to default
 -- @treturn table the new global table for that module
 Manager.global=setmetatable({__defaults={},__global={
@@ -342,6 +342,7 @@ Manager.loadModules = setmetatable({},
 -- @usage #Manager.error -- returns the number of error handlers that are present
 -- @usage pairs(Manager.error) -- loops over only the error handlers handler_name,hander
 Manager.error = setmetatable({
+    __crash=false,
     __error_call=error,
     __error_const={},
     __error_handler=function(handler_name,callback)
@@ -401,7 +402,7 @@ Manager.error = setmetatable({
         local function next_pair(tbl,k)
             local v
             k, v = next(tbl, k)
-            if k == '__error_call' or k == '__error_const' or k == '__error_handler' then return next_pair(tbl,k) end
+            if k == '__error_call' or k == '__error_const' or k == '__error_handler' or k == '__crash' then return next_pair(tbl,k) end
             if type(v) == 'function' then return k,v end
         end
         return next_pair, tbl, nil
@@ -438,6 +439,7 @@ Manager.event = setmetatable({
 },{
     __metatable=false,
     __call=function(tbl,event_name,new_callback,...)
+        if Manager.error.__crash then Manager.error.__error_call('No error handlers loaded; Game not loaded; Forced crash: '..tostring(Manager.error.__crash)) end
         -- if no params then return the stop constant
         if event_name == nil then return rawget(tbl,'__stop') end
         -- if the event name is a table then loop over each value in that table
