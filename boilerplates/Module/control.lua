@@ -50,10 +50,16 @@ script.on_event('on_player_died',function(event)
     error('A player died!') 
 end)
 
--- @local Creating a function called on_init will be ran by the manager once all other modules are loaded, you are able to test for optianl dependies or extend this module
+-- @local Creating a function called on_init will be ran by the manager once all other modules are loaded, you should use this to test for optianl depeniens and loaded extra code
 function ModuleName:on_init()
     -- this file will extent the module during on_init so can be used to load more function if an optianl dependie if present, or to run a test file
     if loaded_modules.OptianlModule then require(module_path..'/src/libTwo') end
+end
+
+-- @local Creating a function called on_post will be ran by the manager once all extra code from all modules is loaded, you should not run code which effects other modules ExpGamingCore.Ranking is a good example
+function ModuleName:on_post()
+    -- once all extra code from all modules have been loaded this can then be used to clean and set values in your own moudle
+    ModuleName.foo() -- not useful in this boiler print example
 end
 
 -- return the module if needed, it will be appended to modules of the same name if there are modules which add to this one
