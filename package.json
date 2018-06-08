@@ -1,0 +1,32 @@
+{
+  "name": "factoriosoftmodmanager",
+  "version": "0.1.0",
+  "description": "(WIP) A cli to download and install softmods for a factorio scenario",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cooldude2606/FactorioSoftmodManager.git"
+  },
+  "keywords": [
+    "manager",
+    "factorio",
+    "loader",
+    "softmod",
+    "scenario"
+  ],
+  "author": "Cooldude2606",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cooldude2606/FactorioSoftmodManager/issues"
+  },
+  "homepage": "https://github.com/Cooldude2606/FactorioSoftmodManager#readme",
+  "dependencies": {
+    "chalk": "^2.4.1"
+  }
+}
