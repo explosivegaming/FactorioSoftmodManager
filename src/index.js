@@ -7,6 +7,7 @@ program
 
 program
     .version('0.1.0')
+    .usage('fsm [command] [options]')
     .description('(WIP) A cli to download and install softmods for a factorio scenario')
     
     
