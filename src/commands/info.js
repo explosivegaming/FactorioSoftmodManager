@@ -1,7 +1,7 @@
 // require 
 const Chalk = require('chalk')
 const fs = require('fs')
-const valid = require('./../valid')
+const valid = require('./../lib/valid')
 
 function basic(data){
     console.log(Chalk` {underline ${data.name} - ${data.version} (${data.module})}\n\n  ${data.description}`)

@@ -2,7 +2,7 @@
   "name": "factoriosoftmodmanager",
   "version": "0.1.0",
   "description": "(WIP) A cli to download and install softmods for a factorio scenario",
-  "main": "index.js",
+  "main": "src/index.js",
   "directories": {
     "doc": "doc"
   },
@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/Cooldude2606/FactorioSoftmodManager#readme",
   "dependencies": {
-    "chalk": "^2.4.1"
+    "chalk": "^2.4.1",
+    "commander": "^2.15.1"
   }
 }
