@@ -33,7 +33,7 @@ module.exports = (path='.',options) => {
             case undefined:
                 console.log('Module was not defined in softmod.json')
                 break
-            case 'Secnario':
+            case 'Scenario':
                 if (!valid.secnario(data)) {console.log('Secnario softmod.json was malformed'); break}
                 basic(data)
                 array('Modules',Object.keys(data.modules))
