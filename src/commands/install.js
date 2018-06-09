@@ -75,7 +75,7 @@ function create_index(dir) {
             let write_str = ''
             for (let module_name in index) {
                 const path = index[module_name]
-                if (module_name === 'GlobalLib') write_str=`    ['${module_name}']='${path}',\n${write_str}`
+                if (module_name.includes('GlobalLib')) write_str=`    ['${module_name}']='${path}',\n${write_str}`
                 else write_str=`${write_str}    ['${module_name}']='${path}',\n`
             }
             fs.writeFile(index_path,`-- not_luadoc=true\n--- Used to index the files to be loaded\nreturn {\n${write_str}}`,err => {
