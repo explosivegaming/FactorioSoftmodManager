@@ -28,6 +28,7 @@
   "homepage": "https://github.com/Cooldude2606/FactorioSoftmodManager#readme",
   "dependencies": {
     "chalk": "^2.4.1",
-    "commander": "^2.15.1"
+    "commander": "^2.15.1",
+    "promptly": "^3.0.3"
   }
 }
