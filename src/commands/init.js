@@ -88,8 +88,9 @@ module.exports = async (dir='.',options) => {
                 })
                 for (let submodule_name in data.submodules) if (!valid.submodule(data.submodules[submodule_name])) delete data.submodules[submodule_name]
             } break
-            default:
-
+            default: {
+                await detail(dir,data,options)
+            }
         }
         fs.writeFile(dir+josn_file,JSON.stringify(data,undefined,4),err => {
             if (err) console.log(`Error writing file: ${err}`) 
