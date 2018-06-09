@@ -1,6 +1,6 @@
 {
     "name": "Module Name - This is unique name that is given to this module",
-    "module": "ModuleName - This is how other modules will be to access this module ie ModuleName.foo()",
+    "module": "ModuleName - This is how other modules will be to access this module ie ModuleName.foo(), if it is GlobalLib it will be loaded before other modules",
     "description": "Description - A small description that will be displayed on the cli",
     "__comment_keywords": "An array of strings that describe the module",
     "keywords": ["Tag1","Tag2"],

@@ -21,8 +21,15 @@ program
     .action(require('./commands/init'))
 
 program
+    .command('install [name] [dir]')
+    .description('installs all modules that are required to run a secario or adds a dependencie for a module')
+    .option('-d, --dry-run','will not download any thing but will move and create files')
+    .option('-f, --force','forces files to be overriden during install')
+    .action(require('./commands/install'))
+
+program
     .version('0.1.0')
-    .usage('fsm [command] [options]')
+    .usage('fsm <command> [options]')
     .description('(WIP) A cli to download and install softmods for a factorio scenario')
     
     

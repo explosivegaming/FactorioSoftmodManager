@@ -94,7 +94,7 @@ module.exports = async (dir='.',options) => {
         }
         fs.writeFile(dir+josn_file,JSON.stringify(data,undefined,4),err => {
             if (err) console.log(`Error writing file: ${err}`) 
-            else console.log(`Worte file: ${fs.realpathSync(dir+josn_file)}`)
+            else console.log(`Wrote file: ${fs.realpathSync(dir+josn_file)}`)
         })
     } catch(error) {
         if (error.message != 'canceled') console.log(error)

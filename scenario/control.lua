@@ -1,12 +1,13 @@
--- File Which Factorio Will Call
+-- not_luadoc=true
+function _log(...) log(...) end -- do not remove this is used for smaller verbose lines
 Manager = require("FactorioSoftmodManager")
 Manager.setVerbose{
     selfInit=true, -- called while the manager is being set up
-    moduleLoad=true, -- when a module is required by the manager
-    moduleInit=true, -- when and within the initation of a module
-    modulePost=true, -- when and within the post of a module
+    moduleLoad=false, -- when a module is required by the manager
+    moduleInit=false, -- when and within the initation of a module
+    modulePost=false, -- when and within the post of a module
     moduleEnv=true, -- during module runtime, this is a global option set within each module for fine control
-    eventRegistered=true, -- when a module registers its event handlers
+    eventRegistered=false, -- when a module registers its event handlers
     errorCaught=true, -- when an error is caught during runtime
     output=Manager._verbose -- can be: can be: print || log || other function
 }
