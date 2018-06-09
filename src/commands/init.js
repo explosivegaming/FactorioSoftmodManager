@@ -1,8 +1,8 @@
 // require 
 const promptly = require('promptly')
 const fs = require('fs')
+const valid = require('./../lib/valid')
 const josn_file = '/softmod.json'
-
 
 function read_default(dir,key) {
     try {
@@ -15,7 +15,8 @@ function read_default(dir,key) {
 }
 
 async function get_input(dir,data,data_key,options,options_key,name,default_value) {
-    const default_input = options[options_key] || read_default(dir,data_key) || default_value
+    let default_input = options[options_key] || read_default(dir,data_key) || default_value
+    if (typeof default_input === 'object') default_input=Object.values(default_input).join(',')
     if (!options[options_key] && !options.yesAll) {
         data[data_key] = await promptly.prompt(`Module ${name}: (${default_input}) `,{trim:false,default:default_input})
     } else data[data_key]=default_input
@@ -39,13 +40,22 @@ async function basic(dir,data,options) {
     await get_input(dir,data,'description',options,undefined,'description','<blank>')
 }
 
+async function detail(dir,data,options) {
+    await get_input(dir,data,'location',options,'url','location url','<blank>')
+    await get_input(dir,data,'keywords',options,'keyWords','keywords','<blank>')
+    data.keywords = data.keywords.split(',')
+    await get_input(dir,data,'author',options,'author','author','<blank>')
+    await get_input(dir,data,'contact',options,'contact','contact','<blank>')
+    await get_input(dir,data,'license',options,'license','license','<blank>')
+}
+
 module.exports = async (dir='.',options) => {
     try {
         const data = {}
         await basic(dir,data,options)
-        data.modules = read_default(dir,'modules') || {}
         switch (data.module) {
-            case 'Scenario':
+            case 'Scenario': {
+                data.modules = read_default(dir,'modules') || {}
                 const module_dir = dir+'/modules'
                 const files = fs.readdirSync(module_dir)
                 if (!files) {console.log('Skiping module loading, modules dir not found'); break}
@@ -60,9 +70,24 @@ module.exports = async (dir='.',options) => {
                         }
                     }
                 })
-                break
-            case 'Collection':
-                break
+            } break
+            case 'Collection': {
+                await detail(dir,data,options)
+                data.submodules = read_default(dir,'submodules') || {}
+                const module_dir = dir
+                const files = fs.readdirSync(module_dir)
+                if (!files) {console.log('Skiping module loading, modules dir not found'); break}
+                files.forEach(dir_name => {
+                    if (fs.statSync(`${module_dir}/${dir_name}`).isDirectory()) {
+                        const name = read_default(`${module_dir}/${dir_name}`,'name')
+                        if (name) {
+                            const module_data = JSON.parse(fs.readFileSync(`${module_dir}/${dir_name}/${josn_file}`))
+                            if (valid.submodule(module_data)) data.submodules[name] = module_data
+                        }
+                    }
+                })
+                for (let submodule_name in data.submodules) if (!valid.submodule(data.submodules[submodule_name])) delete data.submodules[submodule_name]
+            } break
             default:
 
         }
@@ -71,6 +96,6 @@ module.exports = async (dir='.',options) => {
             else console.log(`Worte file: ${fs.realpathSync(dir+josn_file)}`)
         })
     } catch(error) {
-        if (!error.message != 'canceled') console.log(error)
+        if (error.message != 'canceled') console.log(error)
     }
 }
