@@ -36,6 +36,65 @@ async function init_dir(dir,override) {
     })
 }
 
+function copy_locale(src,dest) {
+    fs.readdir(src,(err,files) => {
+        if (err) console.log('Could not read locale dir: '+err)
+        else {
+            files.forEach(file => {
+                if (fs.statSync(`${src}/${file}`).isDirectory()) {
+                    if (!fs.existsSync(`${dest}/${file}`)) {console.log(`Created new locale dir: ${file}`); fs.mkdirSync(`${dest}/${file}`)}
+                    fs.readdir(`${src}/${file}`,(err,locale_files) => {
+                        if (err) console.log('Could not read locale dir: '+err)
+                        else {
+                            locale_files.forEach(lcoale_file => {
+                                if (!fs.statSync(`${src}/${file}/${lcoale_file}`).isDirectory()) {
+                                    let file_name = src.indexOf('/modules') > 0 && src.substring(src.indexOf('/modules')+9) || src.indexOf('\\modules') > 0 && src.substring(src.indexOf('\\modules')+9)
+                                    file_name = file.substring(0,file.lastIndexOf('.'))+'/'+file_name.replace(/\//g, '.').substring(0,file_name.length-7)
+                                    fs.copyFile(`${src}/${file}/${lcoale_file}`,`${dest}/${file}/${file_name}.cfg`,err => {
+                                        if (err) console.log(`Failed to copy locale file ${err}`)
+                                        else {
+                                            console.log(`Copyed locale file: ${file_name}.cfg`)
+                                            fs.unlink(`${src}/${file}/${lcoale_file}`,err => {if (err) console.log('Failed to remove locale file: '+err)})
+                                            fs.rmdir(`${src}/${file}`,err => {})
+                                            fs.rmdir(src,err => {})
+                                        }
+                                    })
+                                }
+                            })
+                        }
+                    })
+                } else {
+                    if (!fs.existsSync(`${dest}/${file.substring(0,file.lastIndexOf('.'))}`)) {console.log(`Created new locale dir: ${file.substring(0,file.lastIndexOf('.'))}`); fs.mkdirSync(`${dest}/${file.substring(0,file.lastIndexOf('.'))}`)}
+                    let file_name = src.indexOf('/modules') > 0 && src.substring(src.indexOf('/modules')+9) || src.indexOf('\\modules') > 0 && src.substring(src.indexOf('\\modules')+9)
+                    file_name = file.substring(0,file.lastIndexOf('.'))+'/'+file_name.replace(/\//g, '.').substring(0,file_name.length-7)
+                    fs.copyFile(`${src}/${file}`,`${dest}/${file_name}.cfg`,err => {
+                        if (err) console.log(`Failed to copy locale file ${err}`)
+                        else {
+                            console.log(`Copyed locale file: ${file_name}.cfg`)
+                            fs.unlink(`${src}/${file}`,err => {if (err) console.log('Failed to remove locale file: '+err)})
+                            fs.rmdir(src,err => {})
+                        }
+                    })
+                }
+            })
+        } if (files.length === 0) fs.rmdir(src,err => {})
+    })
+}
+
+function find_locale(src,dest) {
+    fs.readdir(src,(err,files) => {
+        if (err) console.log('Could not read dir: '+err)
+        else {
+            files.forEach(file => {
+                if (fs.statSync(`${src}/${file}`).isDirectory()) {
+                    if (file === 'locale') copy_locale(`${src}/${file}`,dest)
+                    else find_locale(`${src}/${file}`,dest)
+                }
+            })
+        }
+    })
+}
+
 function append_index(index,path,modules) {
     for (let name in modules) {
         const mod = modules[name]
@@ -89,13 +148,13 @@ function create_index(dir) {
 module.exports = async (name='.',dir='.',options) => {
     if (options.dryRun) {
         await init_dir(dir,options.force)
-        // move locales
+        find_locale(`${dir}/modules`,`${dir}/locale`)
         create_index(dir)
     } else {
         await init_dir(dir)
         // find module json
         // download modules
-        // move locales
+        find_locale(`${dir}/modules`,`${dir}/locale`)
         create_index(dir,options.force)
     }
 }
