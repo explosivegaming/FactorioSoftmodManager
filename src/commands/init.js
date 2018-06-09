@@ -1,10 +1,12 @@
 // require 
 const promptly = require('promptly')
 const fs = require('fs')
+const josn_file = '/softmod.json'
+
 
 function read_default(dir,key) {
     try {
-        const file = dir+'/softmod.json'
+        const file = dir+josn_file
         const data = JSON.parse(fs.readFileSync(file,'utf8'))
         return data[key] || undefined
     } catch(error) {
@@ -28,12 +30,47 @@ async function basic(dir,data,options) {
     await get_input(dir,data,'description',options,undefined,'description','<blank>')
 }
 
+async function basic(dir,data,options) {
+    const path = fs.realpathSync(dir)
+    const dir_name = path.lastIndexOf('/') > 0 && path.substring(path.lastIndexOf('/')+1) || path.lastIndexOf('\\') > 0 && path.substring(path.lastIndexOf('\\')+1) || undefined
+    await get_input(dir,data,'name',options,'moduleName','name',dir_name)
+    await get_input(dir,data,'version',options,'moduleVersion','version','1.0.0')
+    await get_input(dir,data,'module',options,'module','type','Scenario')
+    await get_input(dir,data,'description',options,undefined,'description','<blank>')
+}
+
 module.exports = async (dir='.',options) => {
     try {
-        const data = []
+        const data = {}
         await basic(dir,data,options)
-        console.log(data)
+        data.modules = read_default(dir,'modules') || {}
+        switch (data.module) {
+            case 'Scenario':
+                const module_dir = dir+'/modules'
+                const files = fs.readdirSync(module_dir)
+                if (!files) {console.log('Skiping module loading, modules dir not found'); break}
+                files.forEach(dir_name => {
+                    if (fs.statSync(`${module_dir}/${dir_name}`).isDirectory()) {
+                        const name = read_default(`${module_dir}/${dir_name}`,'name')
+                        if (name) {
+                            const version = read_default(`${module_dir}/${dir_name}`,'version')
+                            if (version) {
+                                data.modules[name] = `^${version}`
+                            }
+                        }
+                    }
+                })
+                break
+            case 'Collection':
+                break
+            default:
+
+        }
+        fs.writeFile(dir+josn_file,JSON.stringify(data,undefined,4),err => {
+            if (err) console.log(`Error writing file: ${err}`) 
+            else console.log(`Worte file: ${fs.realpathSync(dir+josn_file)}`)
+        })
     } catch(error) {
-        if (!error.message === 'canceled') console.log(error)
+        if (!error.message != 'canceled') console.log(error)
     }
 }

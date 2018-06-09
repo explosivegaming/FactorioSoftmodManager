@@ -1,11 +1,16 @@
 {
-  "name": "TestScenario",
-  "module": "Secnario",
-  "description": "Test Scenario",
-  "version": "1.0.0",
-  "modules": {
-    "ErrorHandlers": ">1.0.0",
-    "moduleOne": ">1.0.0",
-    "moduleTwo": ">1.0.0"
-  }
+    "name": "TestScenario",
+    "version": "1.0.0",
+    "module": "Scenario",
+    "description": "Test Scenario",
+    "modules": {
+        "ErrorHandlers": ">1.0.0",
+        "moduleOne": ">1.0.0",
+        "moduleTwo": ">1.0.0",
+        "ErrorHandler": "^1.0.0",
+        "ExpLib": "^1.0.0",
+        "ModuleOne": "^1.0.0",
+        "ModuleTwo": "^1.0.0",
+        "StdLib": "^1.0.0"
+    }
 }
