@@ -29,6 +29,8 @@
   "dependencies": {
     "chalk": "^2.4.1",
     "commander": "^2.15.1",
-    "promptly": "^3.0.3"
+    "express": "^4.16.3",
+    "promptly": "^3.0.3",
+    "sequelize": "^4.37.10"
   }
 }

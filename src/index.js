@@ -32,6 +32,16 @@ program
     .action(require('./commands/install'))
 
 // update command (same as init but only updates modules/submodules)
+program
+    .command('update [dir]')
+    .description('place holder for a furture update command')
+
+// host command (starts a get server, in furture will be replaced will a post to host new modules)
+program
+    .command('host')
+    .description('place holder for a furture host command')
+    .option('-p, --port','port to host server on')
+    .action(require('./commands/host'))
 
 // program info
 program
