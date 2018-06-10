@@ -2,6 +2,7 @@ const valid_keys=['name','module','description','version','modules','submodules'
 const keywords_keys=['location','keywords'].concat(valid_keys)
 const author_keys=['author','contact','license'].concat(keywords_keys)
 
+// the most basic information that every json will have
 function valid(data,no_remove) {
     if (data.name && data.module) {
         if (!data.description) data.description='<blank>'
@@ -14,6 +15,7 @@ function valid(data,no_remove) {
     } else return false
 }
 
+// submodules will not include author details in them
 function keywords(data,no_remove) {
     if (valid(data,true)) {
         if (!data.location) return false
@@ -23,6 +25,7 @@ function keywords(data,no_remove) {
     } else return false
 }
 
+// modules and collections will have author details
 function author(data,no_remove) {
     if (keywords(data,true)) {
         if (!data.author) data.author='<blank>'
@@ -33,6 +36,7 @@ function author(data,no_remove) {
     } else return false
 }
 
+// most values will be asgined a default if not present and remove extra keys, if false is returned then the module was missing key information
 module.exports = {
     secnario: valid,
     collection: author,
