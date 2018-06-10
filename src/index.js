@@ -3,7 +3,7 @@ const program = require('commander')
 program
     .command('info [dir]')
     .description('view info on a module, collection or secenario')
-    .option('-m, --module [module]','view info on a submodule of a collection')
+    .option('-m, --module [module]','view info on a submodule of a collection',(val,modules) => {modules.push(val); return modules},[])
     .action(require('./commands/info'))
 
 program
