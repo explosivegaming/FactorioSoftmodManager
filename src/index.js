@@ -9,7 +9,7 @@ program
 program
     .command('init [dir]')
     .description('init a new module, collection or secanrio')
-    .option('-y, --yes-all','skip all other options asked')
+    .option('-y, --yes-all','skips all prompts')
     .option('-n, --module-name <name>','defines the name of this module')
     .option('-m, --module <type>','defines the type or the loaded name of the module')
     .option('-v, --module-version <version>','defines the version of the module')
@@ -25,6 +25,7 @@ program
     .description('installs all modules that are required to run a secario or adds a dependencie for a module')
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-f, --force','forces files to be overriden during install')
+    .option('-y, --yes-all','skips all prompts')
     .action(require('./commands/install'))
 
 program

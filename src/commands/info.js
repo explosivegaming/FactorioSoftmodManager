@@ -30,15 +30,41 @@ module.exports = (path='.',options) => {
         if (err) {console.log(`${file} ${err.code === 'ENOENT' ? 'could not be found' : 'was found but cannot to read'}`); return}
         data = JSON.parse(data)
         switch (data.module) {
-            case undefined:
+            case undefined: {
                 console.log('Module was not defined in softmod.json')
-                break
-            case 'Scenario':
+            } break
+            case 'Scenario': {
                 if (!valid.secnario(data)) {console.log('Secnario softmod.json was malformed'); break}
-                basic(data)
-                array('Modules',Object.keys(data.modules))
-                break
-            case 'Collection': 
+                if (options.module) {
+                    if (!fs.existsSync(`${path}/modules/${options.module}`)) {console.log('Module not found in scenario'); break}
+                    let module_data = fs.readFileSync(`${path}/modules/${options.module}/softmod.json`)
+                    if (!module_data) {console.log('Failed to read json file'); break}
+                    module_data = JSON.parse(module_data)
+                    if (module_data.module === 'Collection') {
+                        if (!valid.collection(module_data)) {console.log('Collection softmod.json was malformed'); break}
+                        basic(module_data)
+                        detail(module_data)
+                        array('Keywords',module_data.keywords)
+                        array('Submodules',Object.keys(module_data.submodules))
+                    } else {
+                        if (!valid.module(module_data)) {console.log('Module softmod.json was malformed'); break}
+                        basic(module_data)
+                        detail(module_data)
+                        array('Keywords',module_data.keywords)
+                        let opt = []; let req = []
+                        for (let name in module_data.dependencies) {
+                            if (module_data.dependencies[name].includes('?')) opt.push(name)
+                            else req.push(name)
+                        }
+                        array('Dependencies',req)
+                        array('Optinal Dependencies',opt)
+                    }
+                } else {
+                    basic(data)
+                    array('Modules',Object.keys(data.modules))
+                } 
+            } break
+            case 'Collection': {
                 if (!valid.collection(data)) {console.log('Collection softmod.json was malformed'); break}
                 if (options.module) {
                     if (!data.submodules[options.module]) {console.log('Submodule not found in collection'); break}
@@ -59,8 +85,8 @@ module.exports = (path='.',options) => {
                     array('Keywords',data.keywords)
                     array('Submodules',Object.keys(data.submodules))
                 }
-                break
-            default:
+            } break
+            default: {
                 if (!valid.module(data)) {console.log('Module softmod.json was malformed'); break}
                 basic(data)
                 detail(data)
@@ -72,7 +98,7 @@ module.exports = (path='.',options) => {
                 }
                 array('Dependencies',req)
                 array('Optinal Dependencies',opt)
-                break
+            } break
         }
         
     })
