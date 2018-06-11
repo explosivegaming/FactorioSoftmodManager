@@ -1,12 +1,11 @@
 // require
 const fs = require('fs')
-const json_file = '/softmod.json'
-const lua_file = '/control.lua'
+const config = require('./../config.json')
 const valid = require('./../lib/valid')
 
 // copies scenario dir to the install dir
 async function init_dir(dir,force) {
-    const scenario = process.argv[1]+'/scenario'
+    const scenario = process.argv[1]+config.srcScenario
     const files = fs.readdirSync(scenario)
     if (!files) throw new Error('Unable to find scenario template')
     // loop over files in scenario dir
@@ -63,7 +62,7 @@ function copy_locale(src,dest) {
                                 // only copies files, will not look in sub dirs of the sub locale dir
                                 if (!fs.statSync(`${src}/${file}/${lcoale_file}`).isDirectory()) {
                                     // generates a file name for the locale cfg file, the module name/location
-                                    let file_name = src.indexOf('/modules') > 0 && src.substring(src.indexOf('/modules')+9) || src.indexOf('\\modules') > 0 && src.substring(src.indexOf('\\modules')+9)
+                                    let file_name = src.indexOf(config.modulesDir) > 0 && src.substring(src.indexOf(config.modulesDir)+9) || src.indexOf(`\\${config.modulesDir.substring(1)}`) > 0 && src.substring(src.indexOf(`\\${config.modulesDir.substring(1)}`)+9)
                                     file_name = file.substring(0,file.lastIndexOf('.'))+'/'+file_name.replace(/\//g, '.').substring(0,file_name.length-7)
                                     // copies the file under this new name
                                     fs.copyFile(`${src}/${file}/${lcoale_file}`,`${dest}/${file}/${file_name}.cfg`,err => {
@@ -71,9 +70,11 @@ function copy_locale(src,dest) {
                                         else {
                                             // will keep attempting to remove the dir once the file is copied and removed
                                             console.log(`Copyed locale file: ${file_name}.cfg`)
-                                            fs.unlink(`${src}/${file}/${lcoale_file}`,err => {if (err) console.log('Failed to remove locale file: '+err)})
-                                            fs.rmdir(`${src}/${file}`,err => {})
-                                            fs.rmdir(src,err => {})
+                                            if (config.removeLocaleAfterInstall) {
+                                                fs.unlink(`${src}/${file}/${lcoale_file}`,err => {if (err) console.log('Failed to remove locale file: '+err)})
+                                                fs.rmdir(`${src}/${file}`,err => {})
+                                                fs.rmdir(src,err => {})
+                                            }
                                         }
                                     })
                                 }
@@ -84,21 +85,23 @@ function copy_locale(src,dest) {
                     // if it is a file, will create a a new dir of the name of the cfg file in locale if not already made
                     if (!fs.existsSync(`${dest}/${file.substring(0,file.lastIndexOf('.'))}`)) {console.log(`Created new locale dir: ${file.substring(0,file.lastIndexOf('.'))}`); fs.mkdirSync(`${dest}/${file.substring(0,file.lastIndexOf('.'))}`)}
                     // generates a file name for the locale cfg file, the module name/location
-                    let file_name = src.indexOf('/modules') > 0 && src.substring(src.indexOf('/modules')+9) || src.indexOf('\\modules') > 0 && src.substring(src.indexOf('\\modules')+9)
+                    let file_name = src.indexOf(config.modulesDir) > 0 && src.substring(src.indexOf(config.modulesDir)+9) || src.indexOf(`\\${config.modulesDir.substring(1)}`) > 0 && src.substring(src.indexOf(`\\${config.modulesDir.substring(1)}`)+9)
                     file_name = file.substring(0,file.lastIndexOf('.'))+'/'+file_name.replace(/\//g, '.').substring(0,file_name.length-7)
                     // copies the file under this new name
-                    fs.copyFile(`${src}/${file}`,`${dest}/${file_name}.cfg`,err => {
+                    fs.copyFile(`${src}/${file}`,`${dest}/${file_name}${config.localeExt}`,err => {
                         if (err) console.log(`Failed to copy locale file ${err}`)
                         else {
                             // will keep attempting to remove the dir once the file is copied and removed
-                            console.log(`Copyed locale file: ${file_name}.cfg`)
-                            fs.unlink(`${src}/${file}`,err => {if (err) console.log('Failed to remove locale file: '+err)})
-                            fs.rmdir(src,err => {})
+                            console.log(`Copyed locale file: ${file_name}${config.localeExt}`)
+                            if (config.removeLocaleAfterInstall) {
+                                fs.unlink(`${src}/${file}`,err => {if (err) console.log('Failed to remove locale file: '+err)})
+                                fs.rmdir(src,err => {})
+                            }
                         }
                     })
                 }
             })
-        } if (files.length === 0) fs.rmdir(src,err => {}) // if the locale dir were already emtpy then they are removed
+        } if (files.length === 0 && config.removeLocaleAfterInstall) fs.rmdir(src,err => {}) // if the locale dir were already emtpy then they are removed
     })
 }
 
@@ -112,7 +115,7 @@ function find_locale(src,dest) {
             files.forEach(file => {
                 if (fs.statSync(`${src}/${file}`).isDirectory()) {
                     // if it is a dir then it will cheak the name, else look at the sub dirs
-                    if (file === 'locale') copy_locale(`${src}/${file}`,dest)
+                    if (file === config.localeDir.substring(1)) copy_locale(`${src}/${file}`,dest)
                     else find_locale(`${src}/${file}`,dest)
                 }
             })
@@ -132,7 +135,10 @@ function append_index(index,path,modules) {
             } break
             default: {
                 // if it is a module then its name and path are added to the index
-                if (fs.existsSync(`${path}/${name}`) && fs.existsSync(`${path}/${name}${lua_file}`)) index[mod.module] = `${path}/${name}`
+                if (fs.existsSync(`${path}/${name}`) && fs.existsSync(`${path}/${name}${config.luaFile}`)) {
+                    if (mod.module === config.indexPriority) index[mod.module+'-'+mod.name] = `${path}/${name}`
+                    else index[mod.module] = `${path}/${name}`
+                }
             } break
         }
     }
@@ -141,8 +147,8 @@ function append_index(index,path,modules) {
 // creates the lua index file after searching modules dir
 function create_index(dir) {
     const index = {}
-    const module_path = `${dir}/modules`
-    const index_path = `${dir}/modules/index.lua`
+    const module_path = dir+config.modulesDir
+    const index_path = module_path+config.modulesIndex
     // reads the modules dir
     fs.readdir(module_path,(err,files) => {
         if (err) console.log('Module dir not found')
@@ -151,7 +157,7 @@ function create_index(dir) {
             files.forEach(file => {
                 if (fs.statSync(`${module_path}/${file}`).isDirectory()) {
                     // if it is a dir then it will try to read the json file
-                    const mod = fs.readFileSync(`${module_path}/${file}${json_file}`)
+                    const mod = fs.readFileSync(`${module_path}/${file}${config.jsonFile}`)
                     if (!mod) console.log(`Could not read module ${file}`)
                     else {
                         // if successful it will parse the json and call append_index
@@ -169,13 +175,13 @@ function create_index(dir) {
             let write_str = ''
             // first loops over each index and creates a string of the index object in a lua friendly way
             for (let module_name in index) {
-                const path = index[module_name]
+                const module_path = index[module_name]
                 // if it has GlobalLib in its name then it is put at the front of the index
-                if (module_name.includes('GlobalLib')) write_str=`    ['${module_name}']='${path}',\n${write_str}`
-                else write_str=`${write_str}    ['${module_name}']='${path}',\n`
+                if (module_name.includes(config.indexPriority)) write_str=(config.indexBody.replace('${module_name}',module_name).replace('${module_path}',module_path))+write_str
+                else write_str=write_str+(config.indexBody.replace('${module_name}',module_name).replace('${module_path}',module_path))
             }
             // once it has formed the string it will add the header and footer to the file and create the file
-            fs.writeFile(index_path,`-- not_luadoc=true\n--- Used to index the files to be loaded\nreturn {\n${write_str}}`,err => {
+            fs.writeFile(index_path,config.indexHeader+write_str+config.indexFooter,err => {
                 if (err) console.log(`Error writing file: ${err}`)
                 else console.log(`Wrote file: ${fs.realpathSync(index_path)}`)
             })
@@ -187,13 +193,13 @@ module.exports = async (name='.',dir='.',options) => {
     if (options.dryRun) {
         // will not download anything
         await init_dir(dir,options.force)
-        find_locale(`${dir}/modules`,`${dir}/locale`)
+        find_locale(dir+config.modulesDir,dir+config.localeDir)
         create_index(dir)
     } else {
         await init_dir(dir)
         // find module json
         // download modules
-        find_locale(`${dir}/modules`,`${dir}/locale`)
+        find_locale(dir+config.modulesDir,dir+config.localeDir)
         create_index(dir,options.force)
     }
 }

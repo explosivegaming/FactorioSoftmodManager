@@ -1,6 +1,6 @@
 // require
 const express = require('express')
-const default_port = 3000
+const config = require('./../config.json')
 
 const app = express()
 
@@ -15,7 +15,7 @@ app.get('/package/:name',(req,res) => {
 })
 
 module.exports = (options) => {
-    const port = options.port || default_port
+    const port = options.port || config.hostPort
     app.listen(port, () => {
         console.log('Server started on port: '+port)
     })

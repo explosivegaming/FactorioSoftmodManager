@@ -1,0 +1,16 @@
+{
+    "luaFile": "/control.lua",
+    "jsonFile": "/softmod.json",
+    "srcScenario": "/scenario",
+    "localeExt": ".cfg",
+    "localeDir": "/locale",
+    "modulesDir": "/modules",
+    "modulesIndex": "/index.lua",
+    "indexHeader": "-- not_luadoc=true\n--- Used to index the files to be loaded\nreturn {\n",
+    "indexFooter": "}",
+    "indexBody": "    ['${module_name}']='${module_path}',\n",
+    "indexPriority": "GlobalLib",
+    "hostPort": 3000,
+    "removeLocaleAfterInstall": true,
+    "cleanModules": true
+}

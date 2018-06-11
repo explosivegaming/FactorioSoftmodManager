@@ -1,6 +1,7 @@
 // require 
 const Chalk = require('chalk')
 const fs = require('fs')
+const config = require('./../config.json')
 const valid = require('./../lib/valid')
 
 // logs basic detail all jsons will have
@@ -62,8 +63,8 @@ function collection_emit(module_data,sub_module) {
     }
 }
 
-module.exports = (path='.',options) => {
-    const file = path+'/softmod.json'
+module.exports = (dir='.',options) => {
+    const file = dir+config.jsonFile
     // reads the selected json file
     fs.readFile(file,'utf8',(err,data) => {
         if (err) {console.log(`${file} ${err.code === 'ENOENT' ? 'could not be found' : 'was found but cannot to read'}`); return}
@@ -80,8 +81,8 @@ module.exports = (path='.',options) => {
                 // if -m was used it will get a data on a module of the sencatio
                 if (options.module[0]) {
                     // cheaks the module exists and is valid
-                    if (!fs.existsSync(`${path}/modules/${options.module[0]}`)) {console.log('Module not found in scenario'); break}
-                    let module_data = fs.readFileSync(`${path}/modules/${options.module[0]}/softmod.json`)
+                    if (!fs.existsSync(`${dir}${config.modulesDir}/${options.module[0]}`)) {console.log('Module not found in scenario'); break}
+                    let module_data = fs.readFileSync(`${dir}${config.modulesDir}/${options.module[0]}${config.jsonFile}`)
                     if (!module_data) {console.log('Failed to read json file'); break}
                     module_data = JSON.parse(module_data)
                     // cheaks is it is a collection to cheak for a second submodule

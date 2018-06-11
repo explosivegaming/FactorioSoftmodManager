@@ -2,12 +2,12 @@
 const promptly = require('promptly')
 const fs = require('fs')
 const valid = require('./../lib/valid')
-const josn_file = '/softmod.json'
+const config = require('./../config.json')
 
 // will read the json of the module, if one is present, and return the current value
 function read_default(dir,key) {
     try {
-        const file = dir+josn_file
+        const file = dir+config.jsonFile
         const data = JSON.parse(fs.readFileSync(file,'utf8'))
         return data[key] || undefined
     } catch(error) {
@@ -57,7 +57,7 @@ module.exports = async (dir='.',options) => {
             case 'Scenario': {
                 // for scenarios the module dir will be read and auto appented to the json
                 data.modules = read_default(dir,'modules') || {}
-                const module_dir = dir+'/modules'
+                const module_dir = dir+config.modulesDir
                 const files = fs.readdirSync(module_dir)
                 if (!files) {console.log('Skiping module loading, modules dir not found'); break}
                 // loops over the files in the module dir
@@ -88,13 +88,13 @@ module.exports = async (dir='.',options) => {
                         const name = read_default(`${dir}/${dir_name}`,'name')
                         if (name) {
                             // if it is a valid submodule it is added to the json
-                            const module_data = JSON.parse(fs.readFileSync(`${dir}/${dir_name}/${josn_file}`))
+                            const module_data = JSON.parse(fs.readFileSync(`${dir}/${dir_name}${config.jsonFile}`))
                             if (valid.submodule(module_data)) data.submodules[name] = module_data
                         }
                     }
                 })
                 // will loop over already existing submodules to cheak that all are valid
-                for (let submodule_name in data.submodules) if (!valid.submodule(data.submodules[submodule_name])) delete data.submodules[submodule_name]
+                if (config.cleanModules) for (let submodule_name in data.submodules) if (!valid.submodule(data.submodules[submodule_name])) delete data.submodules[submodule_name]
             } break
             default: {
                 // modules just get extra detail no extra auto append
@@ -102,9 +102,9 @@ module.exports = async (dir='.',options) => {
             }
         }
         // the json file is then writen into the dir
-        fs.writeFile(dir+josn_file,JSON.stringify(data,undefined,4),err => {
+        fs.writeFile(dir+config.jsonFile,JSON.stringify(data,undefined,4),err => {
             if (err) console.log(`Error writing file: ${err}`) 
-            else console.log(`Wrote file: ${fs.realpathSync(dir+josn_file)}`)
+            else console.log(`Wrote file: ${fs.realpathSync(dir+config.jsonFile)}`)
         })
     } catch(error) {
         // logs all errors but ^C
