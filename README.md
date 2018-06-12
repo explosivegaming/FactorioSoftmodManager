@@ -11,7 +11,7 @@
     <img src="http://github-svg-buttons.herokuapp.com/fork.svg?user=explosivegaming&repo=FactorioSoftmodManager&style=flat&background=007ec6" alt="Fork">
   </a>
   <a href="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager">
-    <img src="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager" alt="CodeFactor">
+    <img src="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager/badge" alt="CodeFactor">
   </a>
   <a href="https://discord.me/explosivegaming">
     <img src="https://discordapp.com/api/guilds/260843215836545025/widget.png?style=shield" alt="Discord">
