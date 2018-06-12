@@ -10,12 +10,12 @@
   <a href="http://github.com/explosivegaming/FactorioSoftmodManager/fork">
     <img src="http://github-svg-buttons.herokuapp.com/fork.svg?user=explosivegaming&repo=FactorioSoftmodManager&style=flat&background=007ec6" alt="Fork">
   </a>
-  <a href="https://www.codefactor.io/repository/github/explosivegaming/FactorioSoftmodManager">
-    <img src="https://www.codefactor.io/repository/github/explosivegaming/FactorioSoftmodManager" alt="CodeFactor">
+  <a href="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager">
+    <img src="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager" alt="CodeFactor">
   </a>
   <a href="https://discord.me/explosivegaming">
     <img src="https://discordapp.com/api/guilds/260843215836545025/widget.png?style=shield" alt="Discord">
   </a>
 </p>
-<h2 align="center">ExpGaming Scenario Repository</h2>
+<h2 align="center">ExpGaming Factorio Softmod Manager Repository</h2>
 (WIP) A cli to download and install softmods for a factorio scenario
