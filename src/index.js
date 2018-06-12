@@ -41,6 +41,7 @@ program
     .command('host')
     .description('place holder for a furture host command')
     .option('-p, --port','port to host server on')
+    .option('-d, --dev','allows use of /raw route for dev purposes')
     .action(require('./commands/host'))
 
 // program info
