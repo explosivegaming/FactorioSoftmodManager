@@ -12,5 +12,6 @@
     "indexPriority": "GlobalLib",
     "hostPort": 3000,
     "removeLocaleAfterInstall": true,
-    "cleanModules": true
+    "cleanModules": true,
+    "serverURL": "http://localhost:3000"
 }

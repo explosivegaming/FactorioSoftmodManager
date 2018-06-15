@@ -2,6 +2,8 @@
 const fs = require('fs')
 const config = require('./../config.json')
 const valid = require('./../lib/valid')
+const Request = require('request')
+const request = Request.defaults({baseUrl:config.serverURL})
 
 // copies scenario dir to the install dir
 async function init_dir(dir,force) {
@@ -10,11 +12,11 @@ async function init_dir(dir,force) {
     if (!files) throw new Error('Unable to find scenario template')
     // loop over files in scenario dir
     files.forEach(file_name => {
-        if (!fs.existsSync(`${scenario}/${file_name}`) || force) {
+        if (!fs.existsSync(`${dir}/${file_name}`) || force) {
             // if it does not exist or if force flag is set
             if (fs.statSync(`${scenario}/${file_name}`).isDirectory()) {
                 // if it is a dir
-                if (fs.existsSync(`${scenario}/${file_name}`)) {
+                if (fs.existsSync(`${dir}/${file_name}`)) {
                     // if the dir is already present in the dest dir
                     if (force) {
                         console.log('to do once downloading works, clear dir and remake')
@@ -189,6 +191,62 @@ function create_index(dir) {
     }) 
 }
 
+async function getJsons(dir,index,queue,opt_modules) {
+    const next = queue.pop()
+    const name = next[0]
+    const version = next[1]
+    if (index[name] && index[name].includes(version.match(/(\d+\.\d+\.\d+)/)[1])) return
+    console.log(`Getting Json for ${name}@${version}...`)
+    return new Promise((resolve,reject) => {
+        request.get(`/package/${name}?version=${version}`,{json:true},(error, response, body) => {
+            if (error) {console.log(error);reject(error);return}
+            if (typeof body == 'string' && body.includes('Error')) {console.log(body);reject(body);return}
+            const json = body.json
+            const lastest = body.lastest
+            const alearatives = body.alterantives
+            let isValid = false
+            switch (json.module) {
+                case undefined: break
+                default: {
+                    if (body.isSubModule && valid.submodule(json)) {index[name] = [lastest,alearatives]; isValid=true}
+                    else if (valid.module(json)) {index[json.name] = [lastest,alearatives]; isValid=true}
+                    if (isValid) {
+                        for (let module_name in json.dependencies) {
+                            if (index[module_name]) index[module_name].map(possible_version => alearatives.includes(possible_version) && possible_version || undefined)
+                            else queue.push([module_name,json.dependencies[module_name]])
+                            if (json.dependencies[module_name].includes('?') && opt_modules[module_name] != false) if(opt_modules[module_name]) {opt_modules[module_name].push(name)} else {opt_modules[module_name] = [name]}
+                            else if(opt_modules[module_name]) opt_modules[module_name] = false
+                        }
+                    }
+                } break
+                case 'Scenario': {
+                    if (valid.secnario(json)) {
+                        isValid=true
+                        for (let module_name in json.modules) {
+                            if (index[module_name]) index[module_name].map(possible_version => alearatives.includes(possible_version) && possible_version || undefined)
+                            else queue.push([module_name,json.modules[module_name]])
+                        }
+                    }
+                } break
+                case 'Collection': {
+                    if (valid.collection(json)) {
+                        isValid=true
+                        for (let module_name in json.submodules) {
+                            if (index[name+'.'+module_name]) index[name+'.'+module_name].map(possible_version => alearatives.includes(possible_version) && possible_version || undefined)
+                            else queue.push([json.name+'.'+module_name,json.submodules[module_name].version])
+                        }
+                    }
+                } break
+            }
+            if (isValid) {
+                if (!fs.existsSync(`${dir}/tempJsonDir` || !fs.statSync(`${dir}/tempJsonDir`).isDirectory())) fs.mkdirSync(`${dir}/tempJsonDir`)
+                fs.writeFile(`${dir}/tempJsonDir/${json.name}.json`,JSON.stringify(json,undefined,4),() => {})
+            } else console.log('File was invalid')
+            resolve()
+        })
+    }).catch(console.log)
+}
+
 module.exports = async (name='.',dir='.',options) => {
     if (options.dryRun) {
         // will not download anything
@@ -196,8 +254,26 @@ module.exports = async (name='.',dir='.',options) => {
         find_locale(dir+config.modulesDir,dir+config.localeDir)
         create_index(dir)
     } else {
+        const index = {}
+        const opt_modules = {}
+        const index_queue = [[name,'*']]
+        const download_queue = []
+        if (name == '.') {
+            if (fs.existsSync(name+config.jsonFile) && fs.statSync(name+config.jsonFile).isFile()) {
+                const json = JSON.parse(fs.readFileSync(name+config.jsonFile))
+                if (json.module == 'Scenario') {
+                    index_queue.pop()
+                    for (let module_name in json.modules) {
+                        index_queue.push([module_name,json.modules[module_name]])
+                    }
+                }
+            }
+        }
         await init_dir(dir)
-        // find module json
+        while (index_queue.length > 0) await getJsons(dir,index,index_queue,opt_modules)
+        for (let module_name in opt_modules) {
+            if (opt_modules[module_name]) console.log(`Optional Dependency ${module_name} requested by:\n${opt_modules[module_name].join(', ')}`)
+        }
         // download modules
         find_locale(dir+config.modulesDir,dir+config.localeDir)
         create_index(dir,options.force)

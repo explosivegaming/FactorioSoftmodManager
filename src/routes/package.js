@@ -65,7 +65,7 @@ Router.get('/:name',(req,res) => {
     const version_query = {[Op.or]: [],name: name}
     for (let i = 0;i < version_reqs.length;i++) {
         const version_parts = version_reqs[i].match(/(\*)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)?)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+))/)
-        if (!version_parts) {res.send('Error 400 Bad Request: Could not parse version query.');return}
+        if (!version_parts) {res.status(400);res.send('Error 400 Bad Request: Could not parse version query.');return}
         if (version_parts[1]) {
             delete version_query[Op.or]
             break
@@ -75,13 +75,15 @@ Router.get('/:name',(req,res) => {
         testVersion(part,version_parts,7)
         testVersion(part,version_parts,12)
     }
-    ModuleJson.findAll({where: version_query, attributes: ['version','versionMajor','versionMinor','versionPatch','json']}).then(results => {
-        if (!results || results.length == 0) {res.send('Error 404 Not Found: Could not find any versions within range.'); return}
+    ModuleJson.findAll({where: version_query, attributes: ['version','versionMajor','versionMinor','versionPatch','isSubModule','json']}).then(results => {
+        if (!results || results.length == 0) {res.status(404);res.send('Error 404 Not Found: Could not find any versions within range.'); return}
         const alterantives = []
         const lastest = [0,0,0]
+        let isSubModule = false
         let lastest_json = {}
         for (let i = 0;i < results.length;i++) {
             const result = results[i]
+            if (!isSubModule && result.isSubModule) isSubModule = true
             alterantives.push(result.version)
             if (result.versionMajor > lastest[0] ||
                 result.versionMajor == lastest[0] && result.versionMinor > lastest[1] ||
@@ -92,7 +94,7 @@ Router.get('/:name',(req,res) => {
                     lastest_json=result.json
             }
         }
-        res.json({lastest:lastest.join('.'),alterantives:alterantives.sort(),json:lastest_json})
+        res.json({lastest:lastest.join('.'),alterantives:alterantives.sort(),isSubModule:isSubModule,json:lastest_json})
     })
 })
 

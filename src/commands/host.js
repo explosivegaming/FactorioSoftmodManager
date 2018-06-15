@@ -5,11 +5,12 @@ const fs = require('fs')
 const valid = require('./../lib/valid')
 const database = require('./../database')
 
-function moduleTemplate(name,version,json) {
+function moduleTemplate(name,version,json,isSubModule) {
     const version_parts = version.split('.')
     return {
         name: name,
         version: version,
+        isSubModule: isSubModule,
         versionMajor: version_parts[0],
         versionMinor: version_parts[1],
         versionPatch: version_parts[2],
@@ -22,7 +23,7 @@ function updateCollection(index,collection) {
     for (let module_name in collection.submodules) {
         const submodule = collection.submodules[module_name]
         if (valid.submodule(submodule)) {
-            index.push(moduleTemplate(collection.name+'.'+submodule.name,submodule.version,submodule))
+            index.push(moduleTemplate(collection.name+'.'+submodule.name,submodule.version,submodule,true))
         }
     }
 }
