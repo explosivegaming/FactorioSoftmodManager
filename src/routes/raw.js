@@ -15,9 +15,9 @@ Router.get('/add/:name',(req,res) => {
         ModuleJson.create({
             name: name,
             version: version,
-            versionMajor: version_parts[0] || 0,
-            versionMinor: version_parts[1] || 0,
-            versionPatch: version_parts[2] || 0
+            versionMajor: version_parts[0],
+            versionMinor: version_parts[1],
+            versionPatch: version_parts[2]
         })
     })
     res.send('Hello, World!')

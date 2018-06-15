@@ -14,6 +14,7 @@ function addVersion(version,parts,offset,op) {
     if (op == '^') {
         version.push({
             versionMajor: {[Op.eq]: parts[offset]},
+            versionMinor: {[Op.gte]: parts[offset+1]}
         })
     } else if (op == '~') {
         version.push({
@@ -61,7 +62,7 @@ Router.get('/:name',(req,res) => {
     const name = req.params.name
     const version = req.query.version || '*'
     const version_reqs = version.split('|')
-    const version_query = {[Op.or]: []}
+    const version_query = {[Op.or]: [],name: name}
     for (let i = 0;i < version_reqs.length;i++) {
         const version_parts = version_reqs[i].match(/(\*)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)?)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+))/)
         if (!version_parts) {res.send('Error 400 Bad Request: Could not parse version query.');return}
@@ -74,7 +75,25 @@ Router.get('/:name',(req,res) => {
         testVersion(part,version_parts,7)
         testVersion(part,version_parts,12)
     }
-    ModuleJson.findAll({where: version_query}).then(found => res.json(found))
+    ModuleJson.findAll({where: version_query, attributes: ['version','versionMajor','versionMinor','versionPatch','json']}).then(results => {
+        if (!results || results.length == 0) {res.send('Error 404 Not Found: Could not find any versions within range.'); return}
+        const alterantives = []
+        const lastest = [0,0,0]
+        let lastest_json = {}
+        for (let i = 0;i < results.length;i++) {
+            const result = results[i]
+            alterantives.push(result.version)
+            if (result.versionMajor > lastest[0] ||
+                result.versionMajor == lastest[0] && result.versionMinor > lastest[1] ||
+                result.versionMajor == lastest[0] && result.versionMinor == lastest[1] && result.versionPatch > lastest[2]) {
+                    lastest[0]=result.versionMajor
+                    lastest[1]=result.versionMinor
+                    lastest[2]=result.versionPatch
+                    lastest_json=result.json
+            }
+        }
+        res.json({lastest:lastest.join('.'),alterantives:alterantives.sort(),json:lastest_json})
+    })
 })
 
 module.exports = Router

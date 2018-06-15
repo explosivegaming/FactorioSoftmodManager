@@ -38,9 +38,10 @@ program
 
 // host command (starts a get server, in furture will be replaced will a post to host new modules)
 program
-    .command('host')
+    .command('host [dir]')
     .description('place holder for a furture host command')
     .option('-p, --port','port to host server on')
+    .option('-u, --update','updates the data base for the modules within the modules dir')
     .option('-d, --dev','allows use of /raw route for dev purposes')
     .action(require('./commands/host'))
 
