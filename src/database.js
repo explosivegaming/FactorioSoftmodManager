@@ -8,7 +8,10 @@ const sequelize = new Sequelize('factorioSoftmodManager',null,null,{
 
 const ModuleJson = sequelize.define('jsons', {
     name: Sequelize.STRING,
-    version: Sequelize.STRING
+    version: Sequelize.STRING,
+    versionMajor: Sequelize.INTEGER,
+    versionMinor: Sequelize.INTEGER,
+    versionPatch: Sequelize.INTEGER
 })
 
 function authenticate () {

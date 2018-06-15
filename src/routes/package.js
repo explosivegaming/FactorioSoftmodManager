@@ -1,14 +1,80 @@
 const Express = require('express')
 const Router = Express.Router()
+const {ModuleJson} = require('./../database')
+const Op = require('sequelize').Op
+
+const removeE = {
+    [Op.lt]:Op.lt,
+    [Op.lte]:Op.lt,
+    [Op.gt]:Op.gt,
+    [Op.gte]:Op.gt
+}
+
+function addVersion(version,parts,offset,op) {
+    if (op == '^') {
+        version.push({
+            versionMajor: {[Op.eq]: parts[offset]},
+        })
+    } else if (op == '~') {
+        version.push({
+            versionMajor: {[Op.eq]: parts[offset]},
+            versionMinor: {[Op.between]: [parts[offset+1]-2,parts[offset+1]+2]}
+        })
+    } else if (op == '=') {
+        version.push({
+            versionMajor: {[Op.eq]: parts[offset]},
+            versionMinor: {[Op.eq]: parts[offset+1]},
+            versionPatch: {[Op.eq]: parts[offset+2]}
+        })
+    } else {
+        version.push({
+            [Op.or]: [
+                {versionMajor:{[removeE[op]]: parts[offset]}},
+                {[Op.and]: {
+                        versionMajor: {[Op.eq]: parts[offset]},
+                        versionMinor: {[removeE[op]]: parts[offset+1]}
+                }},
+                {[Op.and]: {
+                        versionMajor: {[Op.eq]: parts[offset]},
+                        versionMinor: {[Op.eq]: parts[offset+1]},
+                        versionPatch: {[op]: parts[offset+2]}
+                }}
+            ]
+        })
+    }
+}
+
+function testVersion(version,parts,offset) {
+    switch (parts[offset]) {
+        case '<': addVersion(version,parts,offset+1,Op.lt); break
+        case '<=': addVersion(version,parts,offset+1,Op.lte); break
+        case '>': addVersion(version,parts,offset+1,Op.gt); break
+        case '>=': addVersion(version,parts,offset+1,Op.gte); break
+        case '^': addVersion(version,parts,offset+1,'^'); break
+        case '~': addVersion(version,parts,offset+1,'~'); break
+        case '': addVersion(version,parts,offset+1,'='); break
+        case undefined: break
+    }
+}
 
 Router.get('/:name',(req,res) => {
     const name = req.params.name
     const version = req.query.version || '*'
-    console.log(req.url)
-    console.log(name)
-    console.log(version)
-    // replace with json file or url to json file
-    res.send('Hello, World!')
+    const version_reqs = version.split('|')
+    const version_query = {[Op.or]: []}
+    for (let i = 0;i < version_reqs.length;i++) {
+        const version_parts = version_reqs[i].match(/(\*)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)?)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+))/)
+        if (!version_parts) {res.send('Error 400 Bad Request: Could not parse version query.');return}
+        if (version_parts[1]) {
+            delete version_query[Op.or]
+            break
+        }
+        const part = version_query[Op.or][version_query[Op.or].push({[Op.and]:[]})-1][Op.and]
+        testVersion(part,version_parts,3)
+        testVersion(part,version_parts,7)
+        testVersion(part,version_parts,12)
+    }
+    ModuleJson.findAll({where: version_query}).then(found => res.json(found))
 })
 
 module.exports = Router
