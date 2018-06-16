@@ -2,7 +2,7 @@ const Sequelize = require('sequelize');
 
 const sequelize = new Sequelize('factorioSoftmodManager',null,null,{
     dialect: 'sqlite',
-    storage:'factorioSoftmodManager.db',
+    storage:'FactorioSoftmodManager.db',
     operatorsAliases: false,
 });
 

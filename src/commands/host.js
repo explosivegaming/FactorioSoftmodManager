@@ -60,7 +60,13 @@ function addJson(dir,file,index) {
                 if (!valid.collection(json)) break
                 updateCollection(index,json)
             } break
-            case 'Scenario': break
+            case 'Scenario': {
+                if (!valid.secnario(json)) break
+                const temp = moduleTemplate(json.name,json.version,json)
+                let includesModule = false
+                index.forEach(value => {if (!includesModule && value.name == temp.name && value.version == temp.version) includesModule = true})
+                if (!includesModule) index.push(temp)
+            }
             case undefined: break
             default: {
                 if (!valid.module(json)) break
@@ -104,9 +110,8 @@ module.exports = (dir='.',options) => {
     if (options.dev) app.use_raw()
     const index = []
     if (options.update) updateDatabase(dir+config.modulesDir,index)
+    if (options.update && fs.existsSync(dir+config.jsonFile)) {addJson(dir,config.jsonFile,index)}
     if (options.update && options.useIndex) updateDatabase(dir+config.jsonDir,index)
-    console.log('INDEX LENGTH')
-    console.log(index.length)
     if (index.length > 0) applyUpdates(index)
     app.listen(port, () => {
         console.log('Server started on port: '+port)
