@@ -1,6 +1,7 @@
 {
     "luaFile": "/control.lua",
     "jsonFile": "/softmod.json",
+    "jsonDir": "/jsonDownloads",
     "srcScenario": "/scenario",
     "localeExt": ".cfg",
     "localeDir": "/locale",

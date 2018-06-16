@@ -42,7 +42,8 @@ program
     .command('host [dir]')
     .description('place holder for a furture host command')
     .option('-p, --port','port to host server on')
-    .option('-u, --update','updates the data base for the modules within the modules dir')
+    .option('-u, --update','loads new modules from the modules folder into the database')
+    .option('-i, --use-index','loads new modules from the json dir')
     .option('-d, --dev','allows use of /raw route for dev purposes')
     .action(require('./commands/host'))
 

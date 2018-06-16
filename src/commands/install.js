@@ -250,7 +250,7 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules) {
             }
             if (isValid) {
                 if (!fs.existsSync(`${dir}/tempJsonDir` || !fs.statSync(`${dir}/tempJsonDir`).isDirectory())) fs.mkdirSync(`${dir}/tempJsonDir`)
-                fs.writeFile(`${dir}/tempJsonDir/${name}@${latest}.json`,JSON.stringify(json,undefined,4),() => {})
+                fs.writeFile(`${dir}${config.jsonDir}/${name}@${latest}.json`,JSON.stringify(json,undefined,4),() => {})
             } else console.log(Chalk`{red File was invalid}`)
             resolve()
         })
@@ -270,7 +270,7 @@ function read_download_json(dir,name,version,queue,get) {
                 resolve()
             })
         } else {
-            fs.readFile(`${dir}/tempJsonDir/${name}@${version}.json`,(err,file) => {
+            fs.readFile(`${dir}${config.jsonDir}/${name}@${version}.json`,(err,file) => {
                 if (err) reject(err)
                 else {
                     const json = JSON.parse(file)
