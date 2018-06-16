@@ -11,7 +11,7 @@
     "indexBody": "    ['${module_name}']='${module_path}',\n",
     "indexPriority": "GlobalLib",
     "hostPort": 3000,
-    "removeLocaleAfterInstall": true,
+    "removeLocaleAfterInstall": false,
     "cleanModules": true,
     "serverURL": "http://localhost:3000"
 }

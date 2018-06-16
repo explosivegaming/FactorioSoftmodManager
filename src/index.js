@@ -26,9 +26,10 @@ program
 program
     .command('install [name] [dir]')
     .description('installs all modules that are required to run a secario or adds a dependencie for a module')
+    .option('-y, --yes-all','skips all prompts')
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-f, --force','forces files to be overriden during install')
-    .option('-y, --yes-all','skips all prompts')
+    .option('-v --module-version <version>','defines which version will be retrived')
     .action(require('./commands/install'))
 
 // update command (same as init but only updates modules/submodules)
