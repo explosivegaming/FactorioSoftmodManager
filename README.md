@@ -93,13 +93,13 @@ __Options:__
 
 __Versions:__
 * X.Y.Z: will only accept this one version to be installed, most likely to cause conflicts
-* >X.Y.Z: will accept any version that is greater than the current version, same for <
-* >=X.Y.Z: will accept any version greater or equle to this version, same for <=
-* >X.Y.Z<X.Y.Z: will accept any within this range of version (non inclusive), <=  and >= can be used to make it inclusive
+* \>X.Y.Z: will accept any version that is greater than the current version, same for \<
+* \>=X.Y.Z: will accept any version greater or equle to this version, same for \<=
+* \>X.Y.Z<X.Y.Z: will accept any within this range of version (non inclusive), \<=  and \>= can be used to make it inclusive
 * \*: will accept any version, uses the lastest version that is accpeted by other modules
-* ^X.Y.Z: will accept any version which is complatible with the selected (X=X and Y>=Y)
-* ~X.Y.Z: will accept a small range of versions (X=X and Y in range +/-2)
-* ?X.Y.Z: will show that this is an optional depentincy, not very useful for install command, works with any of the above
+* \^X.Y.Z: will accept any version which is complatible with the selected (X=X and Y>=Y)
+* \~X.Y.Z: will accept a small range of versions (X=X and Y in range +/-2)
+* \?X.Y.Z: will show that this is an optional depentincy, not very useful for install command, works with any of the above
 
 ## Host
 `fsm host [dir] [options]`
