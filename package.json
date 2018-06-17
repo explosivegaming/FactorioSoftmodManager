@@ -1,6 +1,6 @@
 {
   "name": "fsm-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A CLI to download and install softmods for a factorio scenario",
   "main": "src/index.js",
   "directories": {
@@ -13,7 +13,9 @@
     "type": "git",
     "url": "git+https://github.com/explosivegaming/FactorioSoftmodManager.git"
   },
-  "bin": {"fsm":"src/index.js"},
+  "bin": {
+    "fsm": "src/index.js"
+  },
   "keywords": [
     "manager",
     "factorio",
