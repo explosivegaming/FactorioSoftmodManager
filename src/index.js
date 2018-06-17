@@ -36,8 +36,9 @@ program
 program
     .command('update [dir]')
     .description('place holder for a furture update command')
+    .action(require('./commands/update'))
 
-// host command (starts a get server, in furture will be replaced will a post to host new modules)
+// host command (starts a host server, in furture this will connect to a master to allow more than a single host)
 program
     .command('host [dir]')
     .description('place holder for a furture host command')
