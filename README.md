@@ -23,21 +23,9 @@
 This npm module can be used to download and install softmods (mods which require no download by the player) for a server. Using the install command and providing the directory of the scenario folder (you will have to create one for now) it will download all modules in that scenario and all their dependieces once down you are free to start the game via host scenario. Unfortully a sideeffect of this is that you can no longer earn achievements.
 
 ## Instalation
-*Plans to use npm*
+`npm i -g fsm-cli`
 
-__Windows:__
-1) Download this repo onto your computer
-2) Install node js
-3) Create fsm.bat on your path
-4) Run commands via `fsm <command> [dir] [options]`
-```bat
-@echo off
-node "path\to\repo" %*
-```
-
-__Linux:__
-
-*Some one please add this i dont know how to add a global command on linux*
+This will download and install our package and it can be used from command line using the alais "fsm".
 
 ## Init
 `fsm init [dir] [options]`
