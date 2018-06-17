@@ -26,27 +26,30 @@ async function init_dir(dir,force) {
     const files = fs.readdirSync(scenario)
     if (!files) throw new Error('Unable to find scenario template')
     // loop over files in scenario dir
-    files.forEach(file_name => {
-        if (!fs.existsSync(`${dir}/${file_name}`) || force) {
-            // if it does not exist or if force flag is set
-            if (fs.statSync(`${scenario}/${file_name}`).isDirectory()) {
-                // if it is a dir
-                if (!fs.existsSync(`${dir}/${file_name}`)) {
-                    // if the dir is not present in the dest dir then it is made
-                    fs.mkdir(`${dir}/${file_name}`,err => {
-                        if (err) console.log(Chalk`{red Error creating dir ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
-                        else console.log(`  Created new dir: ${fs.realpathSync(dir+'/'+file_name)}`)
+    return new Promise((resolve,reject) => {
+        files.forEach(file_name => {
+            if (!fs.existsSync(`${dir}/${file_name}`) || force) {
+                // if it does not exist or if force flag is set
+                if (fs.statSync(`${scenario}/${file_name}`).isDirectory()) {
+                    // if it is a dir
+                    if (!fs.existsSync(`${dir}/${file_name}`)) {
+                        // if the dir is not present in the dest dir then it is made
+                        fs.mkdir(`${dir}/${file_name}`,err => {
+                            if (err) console.log(Chalk`{red Error creating dir ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
+                            else console.log(`  Created new dir: ${fs.realpathSync(dir+'/'+file_name)}`)
+                        })
+                    }
+                } else {
+                    // if it is a file then it is copyed, must not already exist
+                    fs.copyFile(`${scenario}/${file_name}`,`${dir}/${file_name}`,err => {
+                        if (err) console.log(Chalk`{red Error writing file ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
+                        else console.log(`  Wrote file: ${fs.realpathSync(dir+'/'+file_name)}`)
                     })
                 }
-            } else {
-                // if it is a file then it is copyed, must not already exist
-                fs.copyFile(`${scenario}/${file_name}`,`${dir}/${file_name}`,err => {
-                    if (err) console.log(Chalk`{red Error writing file ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
-                    else console.log(`  Wrote file: ${fs.realpathSync(dir+'/'+file_name)}`)
-                })
             }
-        }
-    })
+        })
+        resolve()
+    }).catch(err => console.log(Chalk.red(err)))
 }
 
 // copies and then deletes the locale files of a module, can be a folders or files nammed by the locale eg en or fr
