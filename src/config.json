@@ -2,6 +2,7 @@
     "luaFile": "/control.lua",
     "jsonFile": "/softmod.json",
     "jsonDir": "/jsonDownloads",
+	"database": "/../../fsm.db",
     "srcScenario": "/../../scenario",
     "localeExt": ".cfg",
     "localeDir": "/locale",

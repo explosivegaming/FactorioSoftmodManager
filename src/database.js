@@ -1,8 +1,9 @@
-const Sequelize = require('sequelize');
+const Sequelize = require('sequelize')
+const config = require('./config.json')
 
 const sequelize = new Sequelize('factorioSoftmodManager',null,null,{
     dialect: 'sqlite',
-    storage:'FactorioSoftmodManager.db',
+    storage:process.argv[1]+config.database,
     operatorsAliases: false,
 });
 
