@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Cooldude2606/FactorioSoftmodManager.git"
+    "url": "git+https://github.com/explosivegaming/FactorioSoftmodManager.git"
   },
   "keywords": [
     "manager",
@@ -20,12 +20,12 @@
     "softmod",
     "scenario"
   ],
-  "author": "Cooldude2606",
+  "author": "cooldude2606",
   "license": "GNU",
   "bugs": {
-    "url": "https://github.com/Cooldude2606/FactorioSoftmodManager/issues"
+    "url": "https://github.com/explosivegaming/FactorioSoftmodManager/issues"
   },
-  "homepage": "https://github.com/Cooldude2606/FactorioSoftmodManager#readme",
+  "homepage": "https://github.com/explosivegaming/FactorioSoftmodManager#readme",
   "dependencies": {
     "chalk": "^2.4.1",
     "commander": "^2.15.1",
