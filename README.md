@@ -17,14 +17,97 @@
     <img src="https://discordapp.com/api/guilds/260843215836545025/widget.png?style=shield" alt="Discord">
   </a>
 </p>
-<h2 align="center">ExpGaming Factorio Softmod Manager Repository</h2>
-<h5 align="center">(WIP)</h5>
+<h2 align="center">Factorio Softmod Manager Repository</h2>
 <br>
 
-Once finished this will be a command line interface for installing softmods onto factorio servers, all required dependies for the mod will be downloaded and added to the scenario and any optional one may also be installed once chosen by the user. A index server will be online that the client will use to find modules and the download links for each version, whole scenarios can be downloaded if there are setup using this system. 
+This npm module can be used to download and install softmods (mods which require no download by the player) for a server. Using the install command and providing the directory of the scenario folder (you will have to create one for now) it will download all modules in that scenario and all their dependieces once down you are free to start the game via host scenario. Unfortully a sideeffect of this is that you can no longer earn achievements.
 
-Hopefuly we can make this a common feature that is easy to use but it is just a project im doing for the fun and better of the comunity so if nothing comes of it then oh well. Authenicate and a means to host your own modules will be needed and possibly the abilty to have multiple servers hosting different files. But first lets just get it working. 
+## Instalation
+*Plans to use npm*
 
-Currently we have the commands: init, info, install and host. init allows the creation of the json files from the cli, info is a clean print of the jsons given extra info on module collections, install will be the main command once it is fully set up and host is currently just for testing but will allow a server to host the downloads.
+__Windows:__
+1) Download this repo onto your computer
+2) Install node js
+3) Create fsm.bat on your path
+4) Run commands via `fsm <command> [dir] [options]`
+```bat
+@echo off
+node "path\to\repo" %*
+```
 
-If you read all that well done, just contant me (Cooldude2606) for further infomation if you want to help with the production of this extenstion, pull requests are also welcome.
+__Linux:__
+
+*Some one please add this i dont know how to add a global command on linux*
+
+## Init
+`fsm init [dir] [options]`
+
+Creates a new json file in the dir and asks promts to the user that you can use to easily fill all the requirements for a module json file. Creating a "Scenario" will load all installed modules into the json; Creating a "Collection" will load all installed submodules into the json; Creating a module (any other name given to --module-name) will not have any other data added by the script. See below and in tests for help on making modules.
+
+__Options:__
+* -y, --yes-all: this will skip all questions and use the default values
+* -n, --module-name \<name>: the value that will be used for the name, if emited then promt will be given.
+* -m, --module \<type>: when loaded in game it can be asscessed by this name, if Scenario or Collection acts as a type defination
+* -v, --module-version \<version>: the value that will be used for the version, must be X.Y.Z
+* -u, --url \<url>: the url that will be used for the download location of the module, not required for Scenario type
+* -a, --author \<author>: the author's name or account that will be present in the info
+* -l, --license \<license>: the license type or the location of the license, recoment path or url
+* -c, --contact \<contact>: the contact method that should be used to report bugs or request features
+* -k, --key-words \<keyword>,[keyword]: list of key words to describe the module
+  
+__Creating a module:__
+
+Once a json has been created you should start by creating a locale dir and a src dir, these can be used to store the locale files for the module and any extra scripts that can are used by your module. Any locale files should be named lang.cfg for example en.cfg or fr.cfg and all contained within the one folder, the manager will handle the rest. Then creating a control.lua for the module will act as the root for the module being loaded by the manager. "error", "script" and "global" have been modified to allow easise of devoplment with all conflicts beening hanndled by the manager. There is also two functions which can be defined: ":on_init()" and ":on_post()"; on_init should be used to hanndle optinal dependieces and then on_post should be used to finilise data after other modules may have changed something during init.
+
+__Creating a collection:__
+
+Once a json has been set up, with module set as Collection, you only need to add a folder for each submodule, each submodule folder should contain the same as any other module including a json. Then once you have added your module you use the update command to update the collection to include the new submodules. When you require modules that are in the same collection you should treat them as if there weren't in the same collection, because as for as the manager is concerned these modules are not connected so the collection name must still be specififed (Collection.Submodule).
+
+__Creating a scenario:__
+
+This is by far the easiest to do as it requires no coding and only needs you to mannily edit the json to add any modules you want it to install. The scenario version should be the version of faactorio it was made for.
+
+## Update
+`fsm init [dir]`
+
+Does the same job as init but does not replace any values in the json, used only to update scenarios and collections with new submodules or modules which have been added to them. Dir should be the dir of the scenario or the collection that will be updated.
+
+## Info
+`fsm info [dir] [options]`
+
+Displays the info about a scenario, module, collection or submodule in a clean way on the command line. Dir should point to the scenario and then using -m to access the modules and submodules of a collection. the option -m can be chained upto two times to go from scenario to collection to submodule any extra will be ingroned.
+
+__Options:__
+* -m, --module \<module>: the module of a scenario or the submoule of a collection
+
+## Install
+`fsm install [name] [dir] [options]`
+
+The main feature of this script, allows you to download and install softmods or full scenarios. The name given will be looked up on the index database to retive a json file, this json file can then be used to get the download location and any dependieces that are required. If a sceanrio is given as the name then all the modules for that secnario are downloaded; if a collection is given then all the submodules of that collection and their dependieces will be downloaded; if it is a module then the module and its dependices will be downloaded. If there are optional dependices then the user will be asked if their want these to be installed or not. Once all are installed then starting the scenario will load all of the modules and their data.
+
+__Options:__
+* -y, --yes-all: will skip all promts using the default values
+* -d, --dry-run: will run the install but will skip any downloading, only creates lua index and moves locale files
+* -f, --force: forces a reinstall of all modules that are downloaded, does not effect modules not downloaded
+* -v, --module-version \<version>: the version of the module to get, can also use name@version 
+
+__Versions:__
+* X.Y.Z: will only accept this one version to be installed, most likely to cause conflicts
+* >X.Y.Z: will accept any version that is greater than the current version, same for <
+* >=X.Y.Z: will accept any version greater or equle to this version, same for <=
+* >X.Y.Z<X.Y.Z: will accept any within this range of version (non inclusive), <=  and >= can be used to make it inclusive
+* \*: will accept any version, uses the lastest version that is accpeted by other modules
+* ^X.Y.Z: will accept any version which is complatible with the selected (X=X and Y>=Y)
+* ~X.Y.Z: will accept a small range of versions (X=X and Y in range +/-2)
+* ?X.Y.Z: will show that this is an optional depentincy, not very useful for install command, works with any of the above
+
+## Host
+`fsm host [dir] [options]`
+
+Used to host a server that can be used by clients to retrive json files. This sets up a endpoint which accepts a name and a version qurey to send a json file. Uses an sql database inorder to store jsons and orignle jsons can be removed once there are loaded into the database.
+
+__Options:__
+* -p, --port \<port>: the port which the api will run on
+* -u, --update: updates the database using the modules that are currently installed
+* -i, --use-index: requires -u, will also load jsons from the json chache
+* -d, --dev: runs the api in dev mode allowing access to /raw endpoint
