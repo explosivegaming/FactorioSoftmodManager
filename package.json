@@ -13,6 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/explosivegaming/FactorioSoftmodManager.git"
   },
+  "bin": {"fsm":"src/index.js"},
   "keywords": [
     "manager",
     "factorio",
