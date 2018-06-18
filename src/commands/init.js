@@ -48,6 +48,34 @@ async function detail(dir,data,options) {
     await get_input(dir,data,'license',options,'license','license','<blank>')
 }
 
+function addCollectionToScenario(dir,modules,collection_name,collection_version,collection_modules) {
+    const submodules = fs.readdirSync(dir)
+    let all = true
+    for (let module_name in collection_modules) {
+        if (!submodules.includes(module_name)) {all = false;break}
+    }
+    if (all) {
+        modules[collection_name] = `^${collection_version}`
+    } else {
+        submodules.forEach(sub_dir_name => {
+            // loops over each submodule
+            if (fs.statSync(`${dir}/${sub_dir_name}`).isDirectory()) {
+                // does the same thing as if it were a module
+                const name = read_default(`${dir}/${sub_dir_name}`,'name')
+                const version = read_default(`${dir}/${sub_dir_name}`,'version')
+                const module_type = read_default(`${dir}/${sub_dir_name}`,'module')
+                if (version && module_type == 'Collection') { 
+                    // if it has a version and it is a collection then add the installed submodules not the full collection
+                    addCollectionToScenario(`${module_dir}/${dir_name}`,modules,name,version,read_default(`${dir}/${sub_dir_name}`,'submodules'))
+                } else if (version) {
+                    // if it has a name and version it if added to the json
+                    modules[collection_name+'.'+name] = `^${version}`
+                }
+            }
+        })
+    }
+}
+
 module.exports = async (dir='.',options) => {
     try {
         const data = {}
@@ -67,7 +95,11 @@ module.exports = async (dir='.',options) => {
                         const name = read_default(`${module_dir}/${dir_name}`,'name')
                         if (name) {
                             const version = read_default(`${module_dir}/${dir_name}`,'version')
-                            if (version) {
+                            const module_type = read_default(`${module_dir}/${dir_name}`,'module')
+                            if (version && module_type == 'Collection') { 
+                                // if it has a version and it is a collection then add the installed submodules not the full collection
+                                addCollectionToScenario(`${module_dir}/${dir_name}`,data.modules,name,version,read_default(`${module_dir}/${dir_name}`,'submodules'))
+                            } else if (version) {
                                 // if it has a name and version it if added to the json
                                 data.modules[name] = `^${version}`
                             }
