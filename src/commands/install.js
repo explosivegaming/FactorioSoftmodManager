@@ -137,6 +137,7 @@ function find_locale(src,dest) {
 
 // adds a module or submodules from a collection into the lua index
 function append_index(index,path,modules) {
+    const index_path = path.substring(path.indexOf(config.modulesDir))
     // loops over the modules, data objects
     for (let name in modules) {
         const mod = modules[name]
@@ -149,8 +150,8 @@ function append_index(index,path,modules) {
                 // if it is a module then its name and path are added to the index
                 console.log(`  Adding ${name} to lua index`)
                 if (fs.existsSync(`${path}/${name}`) && fs.existsSync(`${path}/${name}${config.luaFile}`)) {
-                    if (mod.module === config.indexPriority) index[mod.module+'-'+mod.name] = `${path}/${name}`
-                    else index[mod.module] = `${path}/${name}`
+                    if (mod.module === config.indexPriority) index[mod.module+'-'+mod.name] = `${index_path}/${name}`
+                    else index[mod.module] = `${index_path}/${name}`
                 }
             } break
         }
@@ -238,8 +239,17 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_mod
                 case undefined: break
                 default: {
                     // any module that is not a scenario or a collection
-                    // tests between a module and a submodule
-                    if (body.isSubModule && valid.submodule(json)) {index[name] = [latest,alearatives]; isValid=true}
+                    // tests between a module and a submodule, if its a submodule it will add its colelction to the queue if it is not already loaded
+                    if (body.isSubModule && valid.submodule(json)) {
+                        const collection_name = name.substring(0,name.lastIndexOf('.'))
+                        if (!index[collection_name]) {
+                            console.log(Chalk`   {grey Adding collection to queue: ${collection_name}}`)
+                            queue.push([collection_name,'^'+json.version])
+                            opt_modules[collection_name] = true
+                        }
+                        index[name] = [latest,alearatives]
+                        isValid=true
+                    }
                     else if (valid.module(json)) {index[json.name] = [latest,alearatives]; isValid=true}
                     // if the (sub)module is valid then its dependencies are added to the lookup queue
                     if (isValid) {
@@ -271,6 +281,7 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_mod
                     if (valid.collection(json)) {
                         isValid=true
                         index[name] = [latest,alearatives]
+                        if (opt_modules[name] == true) break
                         // if a collection was requested then all its submodules will also be requested
                         for (let module_name in json.submodules) {
                             // if it is already found then it will filter the veresions that can be used
