@@ -58,3 +58,7 @@ program
 // if no command then it displays help
 if (process.argv[2]) program.parse(process.argv)
 else program.help()
+
+module.exports = () => {
+    program.parse(arguments.join(' '))
+}

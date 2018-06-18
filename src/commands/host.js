@@ -104,13 +104,26 @@ function updateDatabase(dir,index) {
     }
 }
 
+function updateFromScenario(dir,index) {
+    if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        const modules = fs.readdirSync(dir)
+        if (!modules) console.log('Could not read dir')
+        else {
+            modules.forEach(module_name => {
+                if (fs.statSync(`${dir}/${module_name}`).isFile() && module_name.includes('.json') && module_name != 'info.json') {
+                    addJson(dir,module_name,index)
+                }
+            })
+        }
+    }
+}
+
 module.exports = (dir='.',options) => {
     const port = options.port || config.hostPort
     database.authenticate()
     if (options.dev) app.use_raw()
     const index = []
-    if (options.update) updateDatabase(dir+config.modulesDir,index)
-    if (options.update && fs.existsSync(dir+config.jsonFile)) {addJson(dir,config.jsonFile,index)}
+    if (options.update) {updateDatabase(dir+config.modulesDir,index);updateFromScenario(dir,index)}
     if (options.update && options.useIndex) updateDatabase(dir+config.jsonDir,index)
     if (index.length > 0) applyUpdates(index)
     app.listen(port, () => {
