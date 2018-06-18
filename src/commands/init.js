@@ -140,6 +140,6 @@ module.exports = async (dir='.',options) => {
         })
     } catch(error) {
         // logs all errors but ^C
-        if (error.message != 'canceled') console.log(error)
+        if (error.message != 'canceled') console.log(Chalk.red(error))
     }
 }
