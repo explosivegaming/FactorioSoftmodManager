@@ -14,7 +14,8 @@ program
     .description('init a new module, collection or secanrio')
     .option('-y, --yes-all','skips all prompts')
     .option('-n, --module-name <name>','defines the name of this module')
-    .option('-m, --module <type>','defines the type or the loaded name of the module')
+    .option('-m, --module <name>','defines the loaded name of the module')
+    .option('-t, --type <type>','defines the type of the module, Scenario|Collection|Module|Submodule')
     .option('-v, --module-version <version>','defines the version of the module')
     .option('-u, --url <url>','defines the url location for the module')
     .option('-a, --author <author>','defines the author for the module')
@@ -47,6 +48,7 @@ program
     .option('-u, --update','loads new modules from the modules folder into the database')
     .option('-i, --use-index','loads new modules from the json dir')
     .option('-d, --dev','allows use of /raw route for dev purposes')
+    .option('-w, --watch','watchs the selected dir for new json files and adds them to the database, then removes them')
     .action(require('./commands/host'))
 
 // program info

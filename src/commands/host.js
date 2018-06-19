@@ -1,16 +1,16 @@
 // require
-const config = require('./../config.json')
-const app = require('./../app')
+const config = require('../config.json')
+const app = require('../app')
 const fs = require('fs')
-const valid = require('./../lib/valid')
-const database = require('./../database')
+const valid = require('../lib/valid')
+const reader = require('../lib/reader')
+const database = require('../database')
 
-function moduleTemplate(name,version,json,isSubModule) {
+function moduleTemplate(name,version,json) {
     const version_parts = version.split('.')
     return {
         name: name,
         version: version,
-        isSubModule: isSubModule,
         versionMajor: version_parts[0],
         versionMinor: version_parts[1],
         versionPatch: version_parts[2],
@@ -54,30 +54,27 @@ function applyUpdates(index) {
 
 function addJson(dir,file,index) {
     if (fs.statSync(`${dir}/${file}`).isFile() && file.includes('.json')) {
-        const json = JSON.parse(fs.readFileSync(`${dir}/${file}`))
-        switch (json.module) {
+        const json = reader.json(`${dir}/${file}`)
+        switch (json.type) {
+            case undefined: break
+            default: break
             case 'Collection': {
-                if (!valid.collection(json)) break
                 updateCollection(index,json)
             } break
             case 'Scenario': {
-                if (!valid.secnario(json)) break
                 const temp = moduleTemplate(json.name,json.version,json)
                 let includesModule = false
                 index.forEach(value => {if (!includesModule && value.name == temp.name && value.version == temp.version) includesModule = true})
                 if (!includesModule) index.push(temp)
             }
-            case undefined: break
-            default: {
-                if (!valid.module(json)) break
-                let isSubModule = false
-                if (file.indexOf('.') != file.lastIndexOf('.')) isSubModule = true
+            case 'Submodule' :
+            case 'Module': {
                 const name = '/'+file == config.jsonFile && json.name || file.substring(0,file.lastIndexOf('@'))
-                const temp = moduleTemplate(name,json.version,json,isSubModule)
+                const temp = moduleTemplate(name,json.version,json)
                 let includesModule = false
                 index.forEach(value => {if (!includesModule && value.name == temp.name && value.version == temp.version) includesModule = true})
                 if (!includesModule) index.push(temp)
-            }
+            } break
         }
     }
 }
@@ -118,6 +115,20 @@ function updateFromScenario(dir,index) {
     }
 }
 
+function addWatch(dir) {
+    if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        console.log('Watching dir: '+fs.realpathSync(dir))
+        fs.watch(dir,(event,file) => {
+            if (event == 'rename' && fs.existsSync(dir+'/'+file) && file.includes('.json')) {
+                const index = []
+                addJson(dir,file,index)
+                applyUpdates(index)
+                fs.unlink(`${dir}/${file}`,() => {})
+            }
+        })
+    }
+}
+
 module.exports = (dir='.',options) => {
     const port = options.port || config.hostPort
     database.authenticate()
@@ -126,6 +137,7 @@ module.exports = (dir='.',options) => {
     if (options.update) {updateDatabase(dir+config.modulesDir,index);updateFromScenario(dir,index)}
     if (options.update && options.useIndex) updateDatabase(dir+config.jsonDir,index)
     if (index.length > 0) applyUpdates(index)
+    if (options.watch) addWatch(dir)
     app.listen(port, () => {
         console.log('Server started on port: '+port)
     })

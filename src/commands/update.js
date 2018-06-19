@@ -1,18 +1,8 @@
 // require 
 const fs = require('fs')
-const valid = require('./../lib/valid')
-const config = require('./../config.json')
-
-// will read the json of the module, if one is present, and return the current value
-function read_default(dir,key) {
-    try {
-        const file = dir+config.jsonFile
-        const data = JSON.parse(fs.readFileSync(file,'utf8'))
-        return data[key] || undefined
-    } catch(error) {
-        return undefined
-    }
-}
+const valid = require('../lib/valid')
+const config = require('../config.json')
+const reader = require('../lib/reader')
 
 function addCollectionToScenario(dir,modules,collection_name,collection_version,collection_modules) {
     const submodules = fs.readdirSync(dir)
@@ -27,12 +17,12 @@ function addCollectionToScenario(dir,modules,collection_name,collection_version,
             // loops over each submodule
             if (fs.statSync(`${dir}/${sub_dir_name}`).isDirectory()) {
                 // does the same thing as if it were a module
-                const name = read_default(`${dir}/${sub_dir_name}`,'name')
-                const version = read_default(`${dir}/${sub_dir_name}`,'version')
-                const module_type = read_default(`${dir}/${sub_dir_name}`,'module')
+                const name = reader.getValue(`${dir}/${sub_dir_name}`,'name')
+                const version = reader.getValue(`${dir}/${sub_dir_name}`,'version')
+                const module_type = reader.getValue(`${dir}/${sub_dir_name}`,'type')
                 if (version && module_type == 'Collection') { 
                     // if it has a version and it is a collection then add the installed submodules not the full collection
-                    addCollectionToScenario(`${module_dir}/${dir_name}`,modules,name,version,read_default(`${dir}/${sub_dir_name}`,'submodules'))
+                    addCollectionToScenario(`${module_dir}/${dir_name}`,modules,name,version,reader.getValue(`${dir}/${sub_dir_name}`,'submodules'))
                 } else if (version) {
                     // if it has a name and version it if added to the json
                     modules[collection_name+'.'+name] = `^${version}`
@@ -44,11 +34,11 @@ function addCollectionToScenario(dir,modules,collection_name,collection_version,
 
 module.exports = async (dir='.',options) => {
     try {
-        const data = JSON.parse(fs.readFileSync(dir+config.jsonFile))
-        switch (data.module) {
+        const data = reader.json(dir+config.jsonFile)
+        switch (data.type) {
             case 'Scenario': {
                 // for scenarios the module dir will be read and auto appented to the json
-                data.modules = read_default(dir,'modules') || {}
+                data.modules = reader.getValue(dir,'modules') || {}
                 const module_dir = dir+config.modulesDir
                 const files = fs.readdirSync(module_dir)
                 if (!files) {console.log('Skiping module loading, modules dir not found'); break}
@@ -56,13 +46,13 @@ module.exports = async (dir='.',options) => {
                 files.forEach(dir_name => {
                     if (fs.statSync(`${module_dir}/${dir_name}`).isDirectory()) {
                         // if it is a dir then it will try to read the json file and retreive a name
-                        const name = read_default(`${module_dir}/${dir_name}`,'name')
+                        const name = reader.getValue(`${module_dir}/${dir_name}`,'name')
                         if (name) {
-                            const version = read_default(`${module_dir}/${dir_name}`,'version')
-                            const module_type = read_default(`${module_dir}/${dir_name}`,'module')
+                            const version = reader.getValue(`${module_dir}/${dir_name}`,'version')
+                            const module_type = reader.getValue(`${module_dir}/${dir_name}`,'module')
                             if (version && module_type == 'Collection') { 
                                 // if it has a version and it is a collection then add the installed submodules not the full collection
-                                addCollectionToScenario(`${module_dir}/${dir_name}`,data.modules,name,version,read_default(`${module_dir}/${dir_name}`,'submodules'))
+                                addCollectionToScenario(`${module_dir}/${dir_name}`,data.modules,name,version,reader.getValue(`${module_dir}/${dir_name}`,'submodules'))
                             } else if (version) {
                                 // if it has a name and version it if added to the json
                                 data.modules[name] = `^${version}`
@@ -73,17 +63,19 @@ module.exports = async (dir='.',options) => {
             } break
             case 'Collection': {
                 // if it is a collection it will get extra info and look in the current dir for modules
-                data.submodules = read_default(dir,'submodules') || {}
+                data.submodules = reader.getValue(dir,'submodules') || {}
                 const files = fs.readdirSync(dir)
                 if (!files) {console.log('Skiping module loading, modules dir not found'); break}
                 // loops over files in the current dir
                 files.forEach(dir_name => {
                     if (fs.statSync(`${dir}/${dir_name}`).isDirectory()) {
                         // if it is a dir then it will try to read the json file and retreive a name
-                        const name = read_default(`${dir}/${dir_name}`,'name')
+                        const name = reader.getValue(`${dir}/${dir_name}`,'name')
                         if (name) {
                             // if it is a valid submodule it is added to the json
-                            const module_data = JSON.parse(fs.readFileSync(`${dir}/${dir_name}${config.jsonFile}`))
+                            const module_data = reader.json(`${dir}/${dir_name}${config.jsonFile}`)
+                            module_data.type = 'Submodule'
+                            fs.writeFile(`${dir}/${dir_name}${config.jsonFile}`,JSON.stringify(module_data,undefined,4),err => {})
                             if (valid.submodule(module_data)) data.submodules[name] = module_data
                         }
                     }

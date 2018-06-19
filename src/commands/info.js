@@ -1,8 +1,9 @@
 // require 
 const Chalk = require('chalk')
 const fs = require('fs')
-const config = require('./../config.json')
-const valid = require('./../lib/valid')
+const config = require('../config.json')
+const reader = require('../lib/reader')
+const valid = require('../lib/valid')
 
 // logs basic detail all jsons will have
 function basic(data){
@@ -32,7 +33,7 @@ function array(name,data){
 // emits to the log module data
 function module_emit(module_data,collection) {
     // cheaks json is valid
-    if (!valid.module(module_data)) {console.log('Module softmod.json was malformed'); break}
+    if ((!collection && !valid.module(module_data)) || (collection && !valid.submodule(module_data))) {console.log('Module softmod.json was malformed'); return}
     basic(module_data)
     // if it was called from a collection then it will use the collection detail
     if (collection) detail(collection)
@@ -50,10 +51,10 @@ function module_emit(module_data,collection) {
 
 function collection_emit(module_data,sub_module) {
     // cheaks json is valid
-    if (!valid.collection(data)) {console.log('Collection softmod.json was malformed'); break}
+    if (!valid.collection(module_data)) {console.log('Collection softmod.json was malformed'); return}
     // if a submodule is asked for then it will emit that instead
     if (sub_module) {
-        if (!module_data.submodules[sub_module]) {console.log('Submodule not found in collection'); break}
+        if (!module_data.submodules[sub_module]) {console.log('Submodule not found in collection'); return}
         module_emit(module_data.submodules[sub_module],module_data)
     } else {
         basic(module_data)
@@ -64,47 +65,43 @@ function collection_emit(module_data,sub_module) {
 }
 
 module.exports = (dir='.',options) => {
-    const file = dir+config.jsonFile
     // reads the selected json file
-    fs.readFile(file,'utf8',(err,data) => {
-        if (err) {console.log(`${file} ${err.code === 'ENOENT' ? 'could not be found' : 'was found but cannot to read'}`); return}
-        // if vaild the data is parsed
-        data = JSON.parse(data)
-        switch (data.module) {
-            case undefined: {
-                // handles a undefined value for module in side the json
-                console.log('Module was not defined in softmod.json')
-            } break
-            case 'Scenario': {
-                // cheaks json is valid
-                if (!valid.secnario(data)) {console.log('Secnario softmod.json was malformed'); break}
-                // if -m was used it will get a data on a module of the sencatio
-                if (options.module[0]) {
-                    // cheaks the module exists and is valid
-                    if (!fs.existsSync(`${dir}${config.modulesDir}/${options.module[0]}`)) {console.log('Module not found in scenario'); break}
-                    let module_data = fs.readFileSync(`${dir}${config.modulesDir}/${options.module[0]}${config.jsonFile}`)
-                    if (!module_data) {console.log('Failed to read json file'); break}
-                    module_data = JSON.parse(module_data)
-                    // cheaks is it is a collection to cheak for a second submodule
-                    if (module_data.module === 'Collection') {
-                        if (options.module[1]) collection_emit(module_data,options.module[1])
-                        else collection_emit(module_data)
-                    } else module_emit(module_data)
-                } else {
-                    // if no module asked for then it just depalys basic information
-                    basic(data)
-                    array('Modules',Object.keys(data.modules))
-                } 
-            } break
-            case 'Collection': {
-                collection_emit(data,options.module[0])
-            } break
-            default: {
-                // deafult is any module name
-                module_emit(data)
-            } break
-        }
-        // empty line looks nice
-        console.log() 
-    })
+    const data = reader.json(dir+config.jsonFile)
+    if (!data) {console.log(Chalk.red('Could not read json file')); return}
+    switch (data.type) {
+        default:
+        case undefined: {
+            // handles a undefined value for module in side the json
+            console.log('Module Type was undefined in softmod.json')
+        } break
+        case 'Scenario': {
+            // cheaks json is valid
+            if (!valid.secnario(data)) {console.log('Secnario softmod.json was malformed'); break}
+            // if -m was used it will get a data on a module of the sencatio
+            if (options.module[0]) {
+                // cheaks the module exists and is valid
+                if (!fs.existsSync(`${dir}${config.modulesDir}/${options.module[0]}`)) {console.log('Module not found in scenario'); break}
+                const module_data = reader.json(`${dir}${config.modulesDir}/${options.module[0]}${config.jsonFile}`)
+                // cheaks is it is a collection to cheak for a second submodule
+                if (module_data.type == 'Collection') {
+                    if (options.module[1]) collection_emit(module_data,options.module[1])
+                    else collection_emit(module_data)
+                } else module_emit(module_data)
+            } else {
+                // if no module asked for then it just depalys basic information
+                basic(data)
+                array('Modules',Object.keys(data.modules))
+            } 
+        } break
+        case 'Collection': {
+            collection_emit(data,options.module[0])
+        } break
+        case 'Submodule':
+        case 'Module': {
+            // deafult is any module name
+            module_emit(data)
+        } break
+    }
+    // empty line looks nice
+    console.log() 
 }

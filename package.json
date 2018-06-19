@@ -21,7 +21,11 @@
     "factorio",
     "loader",
     "softmod",
-    "scenario"
+    "scenario",
+    "lua",
+    "installer",
+    "cli",
+    "downloader"
   ],
   "author": "cooldude2606",
   "license": "GNU",

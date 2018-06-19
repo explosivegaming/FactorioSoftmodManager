@@ -3,8 +3,8 @@ const fs = require('fs')
 const Chalk = require('chalk')
 const promptly = require('promptly')
 const unzip = require('unzip')
-const config = require('./../config.json')
-const valid = require('./../lib/valid')
+const config = require('../config.json')
+const valid = require('../lib/valid')
 const Request = require('request')
 const request = Request.defaults({baseUrl:config.serverURL})
 
@@ -141,12 +141,15 @@ function append_index(index,path,modules) {
     // loops over the modules, data objects
     for (let name in modules) {
         const mod = modules[name]
-        switch (mod.module) {
+        switch (mod.type) {
+            case undefined: break
+            default: break
             case 'Collection': {
                 // if it is a collection it will repeat but for the submodules of the collection
                 append_index(index,`${path}/${name}`,mod.submodules)
             } break
-            default: {
+            case 'Submodule':
+            case 'Module': {
                 // if it is a module then its name and path are added to the index
                 console.log(`  Adding ${name} to lua index`)
                 if (fs.existsSync(`${path}/${name}`) && fs.existsSync(`${path}/${name}${config.luaFile}`)) {
@@ -235,12 +238,11 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_mod
             const alearatives = body.alterantives
             let isValid = false
             // depending on what type of module it is then it will require different validation
-            switch (json.module) {
+            switch (json.type) {
                 case undefined: break
-                default: {
-                    // any module that is not a scenario or a collection
-                    // tests between a module and a submodule, if its a submodule it will add its colelction to the queue if it is not already loaded
-                    if (body.isSubModule && valid.submodule(json)) {
+                default: break
+                case 'Submodule': {
+                    if (valid.submodule(json)) {
                         const collection_name = name.substring(0,name.lastIndexOf('.'))
                         if (!index[collection_name]) {
                             console.log(Chalk`   {grey Adding collection to queue: ${collection_name}}`)
@@ -250,7 +252,11 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_mod
                         index[name] = [latest,alearatives]
                         isValid=true
                     }
-                    else if (valid.module(json)) {index[json.name] = [latest,alearatives]; isValid=true}
+                }
+                case 'Module': {
+                    // any module that is not a scenario or a collection
+                    // tests between a module and a submodule, if its a submodule it will add its colelction to the queue if it is not already loaded
+                    if (!isValid && valid.module(json)) {index[json.name] = [latest,alearatives]; isValid=true}
                     // if the (sub)module is valid then its dependencies are added to the lookup queue
                     if (isValid) {
                         for (let module_name in json.dependencies) {
@@ -432,7 +438,7 @@ module.exports = async (name='.',dir='.',options) => {
             if (name == '.') {
                 if (fs.existsSync(name+config.jsonFile) && fs.statSync(name+config.jsonFile).isFile()) {
                     const json = JSON.parse(fs.readFileSync(name+config.jsonFile))
-                    if (json.module == 'Scenario') {
+                    if (json.type == 'Scenario') {
                         index_queue.pop()
                         for (let module_name in json.modules) index_queue.push([module_name,json.modules[module_name]])
                     }
