@@ -48,7 +48,7 @@ program
     .option('-u, --update','loads new modules from the modules folder into the database')
     .option('-i, --use-index','loads new modules from the json dir')
     .option('-d, --dev','allows use of /raw route for dev purposes')
-    .option('-w, --watch','watchs the selected dir for new json files and adds them to the database, then removes them')
+    .option('-w, --watch [interville]','watchs the selected dir for new json files and adds them to the database, then removes them')
     .action(require('./commands/host'))
 
 // program info

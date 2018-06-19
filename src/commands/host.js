@@ -5,6 +5,7 @@ const fs = require('fs')
 const valid = require('../lib/valid')
 const reader = require('../lib/reader')
 const database = require('../database')
+const Chalk = require('chalk')
 
 function moduleTemplate(name,version,json) {
     const version_parts = version.split('.')
@@ -115,17 +116,26 @@ function updateFromScenario(dir,index) {
     }
 }
 
-function addWatch(dir) {
+function addWatch(dir,interville) {
+    if (!typeof interville != 'int') interville = 500
     if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        let files = []
+        let index = []
         console.log('Watching dir: '+fs.realpathSync(dir))
         fs.watch(dir,(event,file) => {
             if (event == 'rename' && fs.existsSync(dir+'/'+file) && file.includes('.json')) {
-                const index = []
                 addJson(dir,file,index)
-                applyUpdates(index)
-                fs.unlink(`${dir}/${file}`,() => {})
+                files.push(file)
             }
         })
+        new Promise(async (resolve,reject) => {
+            while (true) {
+                await new Promise((resolve,reject) => {setTimeout(resolve,interville)})
+                applyUpdates(index)
+                files.forEach(file => fs.unlink(`${dir}/${file}`,() => {}))
+                files = []; index = []
+            }
+        }).catch(err => console.log(Chalk.red(err)))
     }
 }
 
@@ -137,7 +147,7 @@ module.exports = (dir='.',options) => {
     if (options.update) {updateDatabase(dir+config.modulesDir,index);updateFromScenario(dir,index)}
     if (options.update && options.useIndex) updateDatabase(dir+config.jsonDir,index)
     if (index.length > 0) applyUpdates(index)
-    if (options.watch) addWatch(dir)
+    if (options.watch) addWatch(dir,options.watch)
     app.listen(port, () => {
         console.log('Server started on port: '+port)
     })
