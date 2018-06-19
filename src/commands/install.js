@@ -16,7 +16,7 @@ function rmdir(dir) {
             else files.forEach(file => rmdir(dir+'/'+file))
         })
     } else {
-        fs.unlink(dir,err => fs.rmdir(dir,err => {}))
+        fs.unlink(dir,err => fs.rmdir(dir+'/../',err => {}))
     }
 }
 

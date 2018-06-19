@@ -26,13 +26,21 @@ program
 
 // install command (used to install a scenario/module/collection/submodule)
 program
-    .command('install [name] [dir]')
+    .command('install <name> [dir]')
     .description('installs all modules that are required to run a secario or adds a dependencie for a module')
     .option('-y, --yes-all','skips all prompts')
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-f, --force','forces files to be overriden during install')
-    .option('-v --module-version <version>','defines which version will be retrived')
+    .option('-v, --module-version <version>','defines which version will be retrived')
     .action(require('./commands/install'))
+
+program
+    .command('uninstall <name> [dir]')
+    .description('uninstalls this module and any dependices that are exclusive to the selected module')
+    .option('-c, --clear-jsons','removes all jsons and does not touch any modules')
+    .option('-j, --remove-json','will also remove the downloaded json file if it is present')
+    .option('-l, --keep-locale','does not remove the locale file for the modules')
+    .action(require('./commands/uninstall'))
 
 // update command (same as init but only updates modules/submodules)
 program
@@ -47,8 +55,8 @@ program
     .option('-p, --port','port to host server on')
     .option('-u, --update','loads new modules from the modules folder into the database')
     .option('-i, --use-index','loads new modules from the json dir')
-    .option('-d, --dev','allows use of /raw route for dev purposes')
     .option('-w, --watch [interville]','watchs the selected dir for new json files and adds them to the database, then removes them')
+    .option('-d, --dev','allows use of /raw route for dev purposes')
     .action(require('./commands/host'))
 
 // program info

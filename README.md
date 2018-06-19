@@ -35,7 +35,8 @@ Creates a new json file in the dir and asks promts to the user that you can use 
 __Options:__
 * -y, --yes-all: this will skip all questions and use the default values
 * -n, --module-name \<name>: the value that will be used for the name, if emited then promt will be given.
-* -m, --module \<type>: when loaded in game it can be asscessed by this name, if Scenario or Collection acts as a type defination
+* -m, --module \<name>: when loaded in game it can be asscessed by this name, if Scenario or Collection acts as a type defination
+* -t, --type \<type>: can be once of Scenario, Collection or Module and the script may also accept Submodule but it is advised not to do this
 * -v, --module-version \<version>: the value that will be used for the version, must be X.Y.Z
 * -u, --url \<url>: the url that will be used for the download location of the module, not required for Scenario type
 * -a, --author \<author>: the author's name or account that will be present in the info
@@ -98,4 +99,5 @@ __Options:__
 * -p, --port \<port>: the port which the api will run on
 * -u, --update: updates the database using the modules that are currently installed
 * -i, --use-index: requires -u, will also load jsons from the json chache
+* -w, --watch [interville]: will automaticly update the database with any jsons added to the selected dir
 * -d, --dev: runs the api in dev mode allowing access to /raw endpoint
