@@ -8,8 +8,8 @@ function valid(data,no_remove) {
     if (data.name && data.module && data.type) {
         if (!data.description) data.description='<blank>'
         if (!data.version) data.description='1.0.0'
-        if (data.type === 'Secenario' && !data.modules) data.modules={}
-        else if (data.type === 'Collection' && !data.submodules) data.submodules={}
+        if (data.type == 'Secenario' && !data.modules) data.modules={}
+        else if (data.type == 'Collection' && !data.submodules) data.submodules={}
         else if (!data.dependencies) data.dependencies={}
         if (config.cleanModules && !no_remove) for (let key in data) if (!valid_keys.includes(key)) delete data[key]
         return true

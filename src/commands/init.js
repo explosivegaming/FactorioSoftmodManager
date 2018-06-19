@@ -139,7 +139,7 @@ module.exports = async (dir='.',options) => {
                 // modules just get extra detail no extra auto append
                 await detail(dir,data,options)
                 data.dependencies = reader.getValue(dir,'dependencies') || {}
-            }
+            } break
         }
         // the json file is then writen into the dir
         fs.writeFile(dir+config.jsonFile,JSON.stringify(data,undefined,4),err => {
