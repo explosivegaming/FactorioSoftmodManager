@@ -4,18 +4,22 @@ const config = require('../config.json')
 const reader = require('../lib/reader')
 const Chalk = require('chalk')
 
-// need to get this to work, for some reason it ios not waiting on the loop
+// removes a dir recusivly and also removes files
 function rmdir(dir) {
-    if (!fs.existsSync(dir)) return
-    console.log(Chalk.grey('Removing file: '+dir))
     return new Promise((resolveMain,rejectMain) => {
-        if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+        // resolve false if not exists, does not reject as its not an error
+        if (!fs.existsSync(dir)) resolveMain(false)
+        console.log(Chalk.grey('  Removing file: '+dir))
+        if (fs.statSync(dir).isDirectory()) {
+            // if it is a dir then it will try to remove it
             fs.rmdir(dir,async err => {
                 if (err.code == 'ENOTEMPTY') {
+                    // if it is not empty then it will remove all sub files, calling this function
                     await new Promise((resolve,reject) => {
                         fs.readdir(dir,async (err,files) => {
                             if (err) reject(`Error reading dir: ${err}`)
                             else {
+                                // loops over files and calls this function then resolves sub promise
                                 while (files.length > 0) {
                                     const file = files.pop()
                                     await rmdir(dir+'/'+file)
@@ -24,21 +28,23 @@ function rmdir(dir) {
                             }
                         })
                     }).catch(err => console.log(Chalk.red(err)))
-                    fs.rmdir(dir,err => {})
+                    // now it is empty it will remove the dir
+                    fs.rmdir(dir,err => {resolveMain(true)})
                 }
             })
         } else {
-            fs.unlink(dir,err => {})
+            // if it is just a file then it will remove the file
+            fs.unlink(dir,err => {resolveMain(true)})
         }
-        resolveMain()
     }).catch(err => console.log(Chalk.red(err)))
 }
 
 // maybe move these funcations as well as rmdir to a lib file as their are useful, but would need to convert these to not have so much validation (true stuff)
-// marks a moddlue to removed unless it is required by a module which needs ot
+// marks a moddlue to removed unless it is required by a module which needs to
+// could maybe make it so it removes a full collection if all modules are removed, will also clean up empty files left by a collection
 function getRemoveStatus(dir,mod,mod_name,parent_remove,name,remove) {
     // makes a chain of that will resolve to true or false
-    if (parent_remove && remove[mod_name] && remove[mod_name].includes(parent_remove)) return
+    if (parent_remove && typeof remove[mod_name] == 'object' && remove[mod_name].includes(parent_remove)) return
     if (remove[mod_name] != true && remove[mod_name]) remove[mod_name].push(parent_remove)
     else if (remove[mod_name] != true) remove[mod_name] = (mod_name == name) || [parent_remove]
     // handles the dependies running this function again
@@ -114,6 +120,7 @@ function resolveTreePart(remove,name,stack=[]) {
     }
 }
 
+// resolves the full tree by going over each value till all are booleans
 function resolveRemoveTree(remove) {
     for (let module_name in remove) {
         if (typeof remove[module_name] != 'boolean') {
@@ -122,50 +129,77 @@ function resolveRemoveTree(remove) {
     }
 }
 
+// removes a file from a dir, file is used to lookup the file to be removed ie foo will remove foobar or barfoo or bar.foo
+function removeFileFromDir(dir,file) {
+    return new Promise(async (resolve,reject) => {
+        if (!fs.existsSync(dir)) resolve(false)
+        const files = fs.readdirSync(dir)
+        if (!files) reject('Could not read dir: '+dir)
+        // loops other the files in the dir
+        while (files.length > 0) {
+            const next = files.pop()
+            // if it matches the file then it is removed, will also remove dirs
+            if (next.includes(file)) await rmdir(`${dir}/${next}`)
+        }
+        fs.rmdir(dir,err => {})
+        resolve(true)
+    }).catch(err => console.log(Chalk.red(err)))
+}
+
 module.exports = async (name='.',dir='.',options) => {
-    if (options.clearJsons) {
+    // if all flag is given it will remove all dirs and files that are made by fsm and restore the default control.lua unless it is empty
+    if (options.removeAll) {
         if (dir == '.') dir = name
-        rmdir(dir+config.jsonDir)
+        console.log(Chalk` {underline Removing Module Dir}`)
+        await rmdir(dir+config.modulesDir)
+        console.log(Chalk` {underline Removing Json Dir}`)
+        await rmdir(dir+config.jsonDir)
+        console.log(Chalk` {underline Removing Locale Dir}`)
+        await rmdir(dir+config.localeDir)
+        console.log(Chalk` {underline Removing Lua Files}`)
+        await removeFileFromDir(dir,'.lua')
+        await removeFileFromDir(dir,config.jsonFile)
+        console.log(Chalk` {underline Restoring Default Factorio Contorl.lua}`)
+        const scenario = process.argv[1]+config.srcScenario+config.modulesDir+'/default-factorio-control.lua'
+        fs.copyFile(scenario,dir+config.luaFile,err => {if (err) console.log(Chalk.red(err)); else console.log('  Wrote File: '+fs.realpathSync(dir+config.luaFile))})
         return
     }
+    // if json flag is given it will remove all the json files
+    if (options.clearJsons) {
+        if (dir == '.') dir = name
+        console.log(Chalk` {underline Removing Json Files}`)
+        await rmdir(dir+config.jsonDir)
+        return
+    }
+    // if no name is given then it returns
     if (name == '.') {
         console.log(Chalk.red('Name is required when not clearing json dir'))
         return
     }
+    // creates the remove tree and resolves it
     const remove = {}
     await loopOverModules(dir,name,remove)
     resolveRemoveTree(remove)
+    // loops over the resolved tree to remove the requested modules
     for (let module_name in remove) {
-        const path = dir+config.modulesDir+'/'+module_name.replace('.','/')
         if (remove[module_name]) {
-            console.log(path)
+            // gets the path of the module
+            const path = dir+config.modulesDir+'/'+module_name.replace('.','/')
+            if (fs.existsSync(path)) console.log(Chalk` {underline Removing Module: ${module_name}}`)
+            // removes all the files within the module
             await rmdir(path)
-            if (options.removeJson) {
-                fs.readdir(dir+config.jsonDir,(err,files) => {
-                    if (err) console.log(Chalk.red(err))
-                    else {
-                        files.forEach(file => {
-                            if (file.includes(module_name)) rmdir(dir+config.jsonDir+'/'+module_name)
-                        })
-                    }
-                })
-            }
+            // if json remove is set then it will also remove the jsons related to it
+            if (options.removeJson) await removeFileFromDir(dir+config.jsonDir,module_name)
+            // unless keep locale flag is set then the locale files for the module are removed
             if (!options.keepLocale) {
-                fs.readdir(dir+config.localeDir,(err,sub_dirs) => {
-                    if (err) console.log(Chalk.red(err))
-                    else {
-                        sub_dirs.forEach(sub_dir => {
-                            fs.readdir(dir+config.localeDir+'/'+sub_dir,(err,files) => {
-                                if (err) console.log(Chalk.red(err))
-                                else {
-                                    files.forEach(file => {
-                                        if (file.includes(module_name)) rmdir(dir+config.localeDir+'/'+sub_dir+'/'+module_name)
-                                    })
-                                }
-                            })
-                        })
+                const files = fs.readdirSync(dir+config.localeDir)
+                if (!files) console.log(Chalk.red('Could not read dir: '+dir+config.localeDir))
+                else {
+                    while (files.length > 0) {
+                        const next = files.pop()
+                        if (fs.statSync(dir+config.localeDir+'/'+next).isDirectory()) await removeFileFromDir(dir+config.localeDir+'/'+next,module_name)
                     }
-                })
+                }
             }
         }
     }

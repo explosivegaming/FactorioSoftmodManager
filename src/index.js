@@ -40,6 +40,7 @@ program
     .option('-c, --clear-jsons','removes all jsons and does not touch any modules')
     .option('-j, --remove-json','will also remove the downloaded json file if it is present')
     .option('-l, --keep-locale','does not remove the locale file for the modules')
+    .option('-a, --remove-all','remove all fsm files from this scenario')
     .action(require('./commands/uninstall'))
 
 // update command (same as init but only updates modules/submodules)
