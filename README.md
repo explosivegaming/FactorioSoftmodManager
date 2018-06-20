@@ -50,11 +50,11 @@ Once a json has been created you should start by creating a locale dir and a src
 
 __Creating a collection:__
 
-Once a json has been set up, with module set as Collection, you only need to add a folder for each submodule, each submodule folder should contain the same as any other module including a json. Then once you have added your module you use the update command to update the collection to include the new submodules. When you require modules that are in the same collection you should treat them as if there weren't in the same collection, because as for as the manager is concerned these modules are not connected so the collection name must still be specififed (Collection.Submodule).
+Once a json has been set up, with type as Collection, you only need to add a folder for each submodule, each submodule folder should contain the same as any other module including a json and be created with type as Module. Then once you have added your module you use the update command to update the collection to include the new submodules. When you require modules that are in the same collection you should treat them as if there weren't in the same collection, because as for as the manager is concerned these modules are not connected so the collection name must still be specififed (Collection.Submodule).
 
 __Creating a scenario:__
 
-This is by far the easiest to do as it requires no coding and only needs you to mannily edit the json to add any modules you want it to install. The scenario version should be the version of faactorio it was made for.
+This is by far the easiest to do as it requires no coding and only needs you to mannily edit the json to add any modules you want it to install. The scenario version should be the version of faactorio it was made for. The type should be definded as Scenario.
 
 ## Update
 `fsm init [dir]`
@@ -72,7 +72,7 @@ __Options:__
 ## Install
 `fsm install [name] [dir] [options]`
 
-The main feature of this script, allows you to download and install softmods or full scenarios. The name given will be looked up on the index database to retive a json file, this json file can then be used to get the download location and any dependieces that are required. If a sceanrio is given as the name then all the modules for that secnario are downloaded; if a collection is given then all the submodules of that collection and their dependieces will be downloaded; if it is a module then the module and its dependices will be downloaded. If there are optional dependices then the user will be asked if their want these to be installed or not. Once all are installed then starting the scenario will load all of the modules and their data.
+The main feature of this script, allows you to download and install softmods or full scenarios. The name given will be looked up on the index database to retive a json file, this json file can then be used to get the download location and any dependieces that are required. If a sceanrio is given as the name then all the modules for that secnario are downloaded; if a collection is given then all the submodules of that collection and their dependieces will be downloaded; if it is a module then the module and its dependices will be downloaded. If there are optional dependices then the user will be asked if their want these to be installed or not. Once all are installed then starting the scenario will load all of the modules and their data. The name of the module can include @X.Y.Z if you wish to ask for a version rather than using the -v option.
 
 __Options:__
 * -y, --yes-all: will skip all promts using the default values
@@ -89,6 +89,17 @@ __Versions:__
 * \^X.Y.Z: will accept any version which is complatible with the selected (X=X and Y>=Y)
 * \~X.Y.Z: will accept a small range of versions (X=X and Y in range +/-2)
 * \?X.Y.Z: will show that this is an optional depentincy, not very useful for install command, works with any of the above
+
+## Uninstall
+`fsm uninstall [name] [dir] [options]`
+
+The contary to install, will remove a module or collection and all of the unqiue dependecies (not used by another module). This prosscess will remove the locale files of that module and all other files within the module. Using -a tag will remove all of the fsm files that are within the scenario and restore the control.lua to the default factorio freeplay one. Using -c will not remove any modules but will instead clear the json dir of any downloaded jsons. Uninstall does not care about version and will remove which ever module it find by the given name.
+
+__Options:__
+* -c, --clear-jsons: clears the json dir and does not remove any modules, name does not need to be defined, first param will be used as the dir
+* -a, --remove-all: removes all fsm files from the scenario and restores freeplay control.lua, name does not need to be defined, first param will be used as the dir
+* -j, --remove-json: this will remove the downloaded json from the json dir when the module is uninstalled
+* -l, --keep-locale: keeps the locale files of a module when the rest of the module is removed
 
 ## Host
 `fsm host [dir] [options]`
