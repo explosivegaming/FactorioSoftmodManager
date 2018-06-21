@@ -2,13 +2,16 @@
   <img alt="logo" src="https://avatars2.githubusercontent.com/u/39745392?s=200&v=4" width="120">
   <br>
   <a href="https://github.com/explosivegaming/FactorioSoftmodManager/tags">
-    <img src="https://img.shields.io/github/tag/explosivegaming/FactorioSoftmodManager.svg?label=tag" alt="Tag">
+    <img src="https://img.shields.io/github/tag/explosivegaming/FactorioSoftmodManager.svg?label=Release" alt="Release">
+  </a>
+  <a href="https://www.npmjs.com/package/fsm-cli">
+    <img src="https://img.shields.io/npm/dt/fsm-cli.svg?label=Downloads" alt="Downloads">
   </a>
   <a href="https://github.com/explosivegaming/FactorioSoftmodManager/stargazers">
-    <img src="http://github-svg-buttons.herokuapp.com/star.svg?user=explosivegaming&repo=FactorioSoftmodManager&style=flat&background=007ec6" alt="Star">
+    <img src="https://img.shields.io/github/stars/explosivegaming/FactorioSoftmodManager.svg?label=Stars" alt="Star">
   </a>
   <a href="http://github.com/explosivegaming/FactorioSoftmodManager/fork">
-    <img src="http://github-svg-buttons.herokuapp.com/fork.svg?user=explosivegaming&repo=FactorioSoftmodManager&style=flat&background=007ec6" alt="Fork">
+    <img src="https://img.shields.io/github/forks/explosivegaming/FactorioSoftmodManager.svg?label=Forks" alt="Fork">
   </a>
   <a href="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager">
     <img src="https://www.codefactor.io/repository/github/explosivegaming/factoriosoftmodmanager/badge" alt="CodeFactor">
