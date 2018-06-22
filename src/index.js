@@ -14,7 +14,6 @@ program
     .description('init a new module, collection or secanrio')
     .option('-y, --yes-all','skips all prompts')
     .option('-n, --module-name <name>','defines the name of this module')
-    .option('-m, --module <name>','defines the loaded name of the module')
     .option('-t, --type <type>','defines the type of the module, Scenario|Collection|Module|Submodule')
     .option('-v, --module-version <version>','defines the version of the module')
     .option('-u, --url <url>','defines the url location for the module')
@@ -35,7 +34,7 @@ program
     .action(require('./commands/install'))
 
 program
-    .command('uninstall <name> [dir]')
+    .command('uninstall [name] [dir]')
     .description('uninstalls this module and any dependices that are exclusive to the selected module')
     .option('-c, --clear-jsons','removes all jsons and does not touch any modules')
     .option('-j, --remove-json','will also remove the downloaded json file if it is present')

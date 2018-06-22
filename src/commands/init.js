@@ -6,13 +6,6 @@ const config = require('../config.json')
 const reader = require('../lib/reader')
 const Chalk = require('chalk')
 
-// converts a string to camcase
-function camelize(str) {
-    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(letter, index) {
-      return index == 0 ? letter.toLowerCase() : letter.toUpperCase();
-    }).replace(/\s+/g, '');
-}
-
 // a helper function to handle the default values and user io
 async function get_input(dir,data,data_key,options,options_key,name,default_value) {
     // default is set via cli or the current value or the default passed to the function
@@ -31,7 +24,6 @@ async function basic(dir,data,options) {
     const dir_name = path.lastIndexOf('/') > 0 && path.substring(path.lastIndexOf('/')+1) || path.lastIndexOf('\\') > 0 && path.substring(path.lastIndexOf('\\')+1) || undefined
     await get_input(dir,data,'name',options,'moduleName','name',dir_name)
     await get_input(dir,data,'version',options,'moduleVersion','version','1.0.0')
-    await get_input(dir,data,'module',options,'module','load name',camelize(data.name))
     if (!options.yesAll) console.log('Type can be: Module, Scenario, Collection')
     await get_input(dir,data,'type',options,'type','type','Module')
     await get_input(dir,data,'description',options,undefined,'description','<blank>')

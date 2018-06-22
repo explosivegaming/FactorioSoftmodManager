@@ -35,7 +35,6 @@ Creates a new json file in the dir and asks promts to the user that you can use 
 __Options:__
 * -y, --yes-all: this will skip all questions and use the default values
 * -n, --module-name \<name>: the value that will be used for the name, if emited then promt will be given.
-* -m, --module \<name>: when loaded in game it can be asscessed by this name, if Scenario or Collection acts as a type defination
 * -t, --type \<type>: can be once of Scenario, Collection or Module and the script may also accept Submodule but it is advised not to do this
 * -v, --module-version \<version>: the value that will be used for the version, must be X.Y.Z
 * -u, --url \<url>: the url that will be used for the download location of the module, not required for Scenario type
@@ -46,7 +45,7 @@ __Options:__
   
 __Creating a module:__
 
-Once a json has been created you should start by creating a locale dir and a src dir, these can be used to store the locale files for the module and any extra scripts that can are used by your module. Any locale files should be named lang.cfg for example en.cfg or fr.cfg and all contained within the one folder, the manager will handle the rest. Then creating a control.lua for the module will act as the root for the module being loaded by the manager. "error", "script" and "global" have been modified to allow easise of devoplment with all conflicts beening hanndled by the manager. There is also two functions which can be defined: ":on_init()" and ":on_post()"; on_init should be used to hanndle optinal dependieces and then on_post should be used to finilise data after other modules may have changed something during init.
+Once a json has been created you should start by creating a locale dir and a src dir, these can be used to store the locale files for the module and any extra scripts that can are used by your module. Any locale files should be named lang.cfg for example en.cfg or fr.cfg and all contained within the one folder, the manager will handle the rest. Then creating a control.lua for the module will act as the root for the module being loaded by the manager. "error", "script" and "global" have been modified to allow easise of devoplment with all conflicts beening hanndled by the manager. There is also two functions which can be defined: ":on_init()" and ":on_post()"; on_init should be used to hanndle optinal dependieces and then on_post should be used to finilise data after other modules may have changed something during init. The require function of lua has been extented to allow the requiring of modules by there defined name ie Collection.Module or Module or Module@version no path is needed.
 
 __Creating a collection:__
 

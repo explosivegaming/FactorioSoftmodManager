@@ -269,18 +269,19 @@ Manager.require = setmetatable({
             -- else it assums the path was a module name and checks index for the module
             if moduleIndex[path] then return rawget(Manager.loadModules,path) end
             -- if its not listed then it tries to remove a version tag and tries again
-            local path_no_version = path.find('@') and path:sub(1,path:find('@')-1) or path
+            local path_no_version = path:find('@') and path:sub(1,path:find('@')-1) or path
             if moduleIndex[path_no_version] then return rawget(Manager.loadModules,path_no_version) end
             -- still no then it will look for all modules that include this one in the name (like a collection)
             local collection = {}
             for module_name,path in pairs(moduleIndex) do
+                if module_name:sub(1,module_name:find('@')-1) == path_no_version then return rawget(Manager.loadModdules,module_name) end
                 if module_name:find(path_no_version) then 
                     local start, _end = module_name:find(path_no_version)
                     collection[module_name:sub(_end)] = rawget(Manager.loadModules,module_name)
                 end
             end
             -- if there is any keys in the collection the collection is returned else the errors with the require error
-            for _ in pairs(collection) return collection end
+            for _ in pairs(collection) do return collection end
             error(data,2)
         end
     end

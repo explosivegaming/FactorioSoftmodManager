@@ -136,25 +136,25 @@ function find_locale(src,dest) {
 }
 
 // adds a module or submodules from a collection into the lua index
-function append_index(index,path,modules) {
+function append_index(index,path,modules,collection) {
     const index_path = path.substring(path.indexOf(config.modulesDir))
     // loops over the modules, data objects
     for (let name in modules) {
         const mod = modules[name]
+        if (collection) name = collection+'.'+name
         switch (mod.type) {
             case undefined: break
             default: break
             case 'Collection': {
                 // if it is a collection it will repeat but for the submodules of the collection
-                append_index(index,`${path}/${name}`,mod.submodules)
+                append_index(index,`${path}/${mod.name}`,mod.submodules,mod.name)
             } break
             case 'Submodule':
             case 'Module': {
                 // if it is a module then its name and path are added to the index
                 console.log(`  Adding ${name} to lua index`)
-                if (fs.existsSync(`${path}/${name}`) && fs.existsSync(`${path}/${name}${config.luaFile}`)) {
-                    if (mod.module === config.indexPriority) index[mod.module+'-'+mod.name] = `${index_path}/${name}`
-                    else index[mod.module] = `${index_path}/${name}`
+                if (fs.existsSync(`${path}/${mod.name}`) && fs.existsSync(`${path}/${mod.name}${config.luaFile}`)) {
+                    index[name] = `${index_path}/${mod.name}`
                 }
             } break
         }
@@ -180,7 +180,7 @@ function create_index(dir) {
                         else {
                             // if successful it will parse the json and call append_index
                             const data = JSON.parse(mod)
-                            if (data.submodules) append_index(index,`${module_path}/${data.name}`,data.submodules)
+                            if (data.submodules) append_index(index,`${module_path}/${data.name}`,data.submodules,data.name)
                             else {
                                 const modules = {}
                                 modules[data.name]=data
