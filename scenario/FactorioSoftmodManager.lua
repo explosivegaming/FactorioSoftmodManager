@@ -277,7 +277,7 @@ Manager.require = setmetatable({
                 if module_name:sub(1,module_name:find('@')-1) == path_no_version then return rawget(Manager.loadModdules,module_name) end
                 if module_name:find(path_no_version) then 
                     local start, _end = module_name:find(path_no_version)
-                    collection[module_name:sub(_end)] = rawget(Manager.loadModules,module_name)
+                    collection[module_name:sub(_end+2)] = rawget(Manager.loadModules,module_name)
                 end
             end
             -- if there is any keys in the collection the collection is returned else the errors with the require error
