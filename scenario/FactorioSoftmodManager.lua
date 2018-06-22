@@ -264,7 +264,7 @@ Manager.require = setmetatable({
         -- runs in a sand box becuase sandbox everything
         local sandbox, success, data = Manager.sandbox(raw_require,env,path)
         -- if there was no error then it assumed the path existed and returns the data
-        if success then return data
+        if success then return unpack(data)
         else
             -- else it assums the path was a module name and checks index for the module
             if moduleIndex[path] then return rawget(Manager.loadModules,path) end
