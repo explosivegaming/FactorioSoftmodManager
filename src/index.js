@@ -23,6 +23,12 @@ program
     .option('-k, --key-words <keyword>,[keyword]','defines a list of key words for the module',val => val.split(','))
     .action(require('./commands/init'))
 
+program
+    .command('build [dir]')
+    .description('builds the module or collection and will give the exports which can then be added to the host')
+    .option('-u, --url <url>','the base url which will be used as the host for the urls, such as a git version (...releases/download/v4.0-core/)')
+    .action(require('./commands/build'))
+
 // install command (used to install a scenario/module/collection/submodule)
 program
     .command('install <name> [dir]')
