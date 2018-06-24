@@ -5,6 +5,7 @@ const promptly = require('promptly')
 const unzip = require('unzip')
 const config = require('../config.json')
 const valid = require('../lib/valid')
+const Version = require('../lib/version')
 const Request = require('request')
 const request = Request.defaults({baseUrl:config.serverURL})
 
@@ -362,23 +363,10 @@ async function create_download_queue(dir,queue,index,opt_modules,yes_all) {
                 await read_download_json(dir,module_name,version,queue)
             } else if (install) {
                 // if there are no vaild version then it thows an error
-                throw new Error(`There was a version confilct for ${module_name} no valid versions were found to match all requirements`)
+                if (versions.length == 0) throw new Error(`There was a version confilct for ${module_name} no valid versions were found to match all requirements`)
                 // if the latest is convlicking with the allowed version then the latest from that list is used
-                const lastest = [0,0,0]
-                versions.forEach(v => {
-                    // finds the latest version
-                    const version_parts = v.split('.')
-                    if (version_parts[0] > lastest[0] ||
-                        version_parts[0] == lastest[0] && version_parts[1] > lastest[1] ||
-                        version_parts[0] == lastest[0] && version_parts[1] == lastest[1] && version_parts[3] > lastest[2]) {
-                            lastest[0]=result.versionMajor
-                            lastest[1]=result.versionMinor
-                            lastest[2]=result.versionPatch
-                    }
-                })
-                version = lastest.join('.')
                 // uses the new latest version to get the download location
-                await read_download_json(dir,module_name,version,queue,true)
+                await read_download_json(dir,module_name,Version.max(versions),queue,true)
             }
         }
     }

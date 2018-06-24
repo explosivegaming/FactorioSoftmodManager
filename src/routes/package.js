@@ -1,6 +1,7 @@
 const Express = require('express')
 const Router = Express.Router()
 const {ModuleJson} = require('./../database')
+const Version = require('../lib/version')
 const Op = require('sequelize').Op
 
 const removeE = {
@@ -78,21 +79,11 @@ Router.get('/:name',(req,res) => {
     ModuleJson.findAll({where: version_query, attributes: ['version','versionMajor','versionMinor','versionPatch','json']}).then(results => {
         if (!results || results.length == 0) {res.status(404);res.send('Error 404 Not Found: Could not find any versions within range.'); return}
         const alterantives = []
-        const lastest = [0,0,0]
-        let lastest_json = {}
-        for (let i = 0;i < results.length;i++) {
-            const result = results[i]
-            alterantives.push(result.version)
-            if (result.versionMajor > lastest[0] ||
-                result.versionMajor == lastest[0] && result.versionMinor > lastest[1] ||
-                result.versionMajor == lastest[0] && result.versionMinor == lastest[1] && result.versionPatch > lastest[2]) {
-                    lastest[0]=result.versionMajor
-                    lastest[1]=result.versionMinor
-                    lastest[2]=result.versionPatch
-                    lastest_json=result.json
-            }
-        }
-        res.json({lastest:lastest.join('.'),alterantives:alterantives.sort(),json:lastest_json})
+        for (let i = 0;i < results.length;i++) alterantives.push(results[i].version)
+        const latest = Version.max(alterantives)
+        const latest_index = alterantives.findIndex(latest)
+        const latest_json = results[latest_index]
+        res.json({latest:latest.join('.'),alterantives:alterantives.sort(),json:latest_json})
     })
 })
 

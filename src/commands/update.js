@@ -3,6 +3,7 @@ const fs = require('fs')
 const valid = require('../lib/valid')
 const config = require('../config.json')
 const reader = require('../lib/reader')
+const Version = require('../lib/version')
 
 function addCollectionToScenario(dir,modules,collection_name,collection_version,collection_modules) {
     const submodules = fs.readdirSync(dir)
@@ -73,10 +74,12 @@ module.exports = async (dir='.',options) => {
                         const name = reader.getValue(`${dir}/${dir_name}`,'name')
                         if (name) {
                             // if it is a valid submodule it is added to the json
+                            const submodule_versions = []
                             const module_data = reader.json(`${dir}/${dir_name}${config.jsonFile}`)
                             module_data.type = 'Submodule'
                             fs.writeFile(`${dir}/${dir_name}${config.jsonFile}`,JSON.stringify(module_data,undefined,4),err => {})
-                            if (valid.submodule(module_data)) data.submodules[name] = module_data
+                            if (valid.submodule(module_data)) {data.submodules[name] = module_data;submodule_versions.push(module_data.version)}
+                            data.version = Version.max(submodule_versions) || data.version || '1.0.0'
                         }
                     }
                 })

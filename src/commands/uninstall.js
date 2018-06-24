@@ -1,5 +1,4 @@
 const fs = require('fs')
-const valid = require('../lib/valid')
 const config = require('../config.json')
 const reader = require('../lib/reader')
 const Chalk = require('chalk')
