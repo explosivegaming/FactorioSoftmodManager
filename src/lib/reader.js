@@ -5,7 +5,7 @@ const config = require('../config.json')
 const fs = require('fs')
 
 // reads the raw data from a json file can accept a dir and then look for the jsonFile in config
-function readModuleJson(file) {
+function readModuleJson(file,noPrintError) {
     try {
         let readFile = file
         if (fs.existsSync(file)) {
@@ -20,20 +20,20 @@ function readModuleJson(file) {
         return undefined
     } catch(error) {
         // catch any errors
-        console.log(Chalk.red(error))
+        if (!noPrintError) console.log(Chalk.red(error))
         return undefined
     }
 }
 
 // reads a module and gets one value used for one offs
-function readModuleValue(dir,key) {
-    const data = readModuleJson(dir)
+function readModuleValue(dir,key,noPrintError) {
+    const data = readModuleJson(dir,noPrintError)
     return data && data[key] || undefined
 }
 
 // reads a module and makes sure it is valid before it is returned
-function readModuleValid(dir) {
-    const data = readModuleJson(dir)
+function readModuleValid(dir,noPrintError) {
+    const data = readModuleJson(dir,noPrintError)
     if (!data) return undefined
     switch (data.type) {
         case undefined: return undefined
