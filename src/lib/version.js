@@ -27,10 +27,10 @@ function versionMax(tbl) {
     for (i=0; i < tbl.length; i++) {
         const version_parts = tbl[i].split('.')
         // greater than test, same as above but uses the same compear each time
-        if (version_parts[0] > lastest[0] ||
-            version_parts[0] == lastest[0] && version_parts[1] > lastest[1] ||
-            version_parts[0] == lastest[0] && version_parts[1] == lastest[1] && version_parts[2] > lastest[2]) {
-                lastest=version_parts
+        if (version_parts[0] > latest[0] ||
+            version_parts[0] == latest[0] && version_parts[1] > latest[1] ||
+            version_parts[0] == latest[0] && version_parts[1] == latest[1] && version_parts[2] > latest[2]) {
+                latest=version_parts
         }
     }
     return latest.join('.')
