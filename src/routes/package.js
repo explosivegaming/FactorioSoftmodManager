@@ -81,9 +81,9 @@ Router.get('/:name',(req,res) => {
         const alterantives = []
         for (let i = 0;i < results.length;i++) alterantives.push(results[i].version)
         const latest = Version.max(alterantives)
-        const latest_index = alterantives.findIndex(latest)
+        const latest_index = alterantives.indexOf(latest)
         const latest_json = results[latest_index]
-        res.json({latest:latest.join('.'),alterantives:alterantives.sort(),json:latest_json})
+        res.json({latest:latest,alterantives:alterantives.sort(),json:latest_json.json})
     })
 })
 

@@ -235,7 +235,7 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_mod
                 reject(err);return
             }
             const json = body.json
-            const latest = body.lastest
+            const latest = body.latest
             const alearatives = body.alterantives
             let isValid = false
             // depending on what type of module it is then it will require different validation
