@@ -31,6 +31,8 @@ function treeDependencies(dir,tree={},module_path,mod_name) {
                 // catches errors while reading the module
                 if (!mod) throw new Error('Could not read json for: '+module_path)
                 if (!mod_name) mod_name = mod.name
+                // modules and submodules will insert values into their list rather than load more modules
+                if (!tree[mod_name]) tree[mod_name] = {}
                 switch (mod.type) {
                     case 'Scenario': {
                         // if it is a scenario then it will read all the modules in the scenario
@@ -41,6 +43,7 @@ function treeDependencies(dir,tree={},module_path,mod_name) {
                                 tree[sub_module] = {}
                                 await treeDependencies(dir,tree,dir+config.modulesDir+sub_module.replace('.','/'))
                             }
+                            tree[mod_name][sub_module] = tree[sub_module] 
                         }
                     } break;
                     case 'Collection': {
@@ -52,12 +55,11 @@ function treeDependencies(dir,tree={},module_path,mod_name) {
                                 tree[sub_module_name] = {}
                                 await treeDependencies(dir,tree,module_path+'/'+sub_module,sub_module_name)
                             }
+                            tree[mod_name][sub_module_name] = tree[sub_module_name] 
                         }
                     } break;
                     case 'Submodule':
                     case 'Module': {
-                        // modules and submodules will insert values into their list rather than load more modules
-                        if (!tree[mod_name]) tree[mod_name] = {}
                         // every dependcy is loaded here
                         for (let dependency in mod.dependencies) {
                             // provents dobble reading
@@ -129,8 +131,26 @@ function flattenTree(tree,newTree={},module_name) {
 }
 
 // this resolves each member to a value based on a function, default is due set value to true if all of its dependents are true
-function resolveTree(tree,qurey) {
-    
+function resolveTree(tree,newTree={},qurey) {
+    const done = []
+    if (!qurey) {qurey = (key,value) => {
+        done.push(key)
+        if (newTree[key]) return newTree[key]
+        if (typeof value == 'boolean') return value
+        let set = true
+        let hasValues = false
+        for (let subKey in value) {
+            hasValues = true
+            if (!newTree[subKey] && done.indexOf(subKey) < 0) {
+                newTree[subKey] = qurey(subKey,tree[subKey])
+                if (newTree[subKey] == false) set = false
+            } else if (newTree[subKey] == false) set = false
+        }
+        if (hasValues) return set
+        else return false
+    }}
+    for (let key in tree) newTree[key] = qurey(key,tree[key])
+    return newTree
 }
 
 // gets the dependencies of this module and all of the dependencies of those dependencies

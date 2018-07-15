@@ -78,6 +78,7 @@ program
         const Tree = await tree.dependents(dir)
         console.log(Tree)
         console.log(tree.flatten(Tree))
+        console.log(tree.resolve(Tree,{}))
     })
 
 // if no command then it displays help
