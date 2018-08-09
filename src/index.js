@@ -71,16 +71,6 @@ program
     .usage('fsm <command> [options]')
     .description('(WIP) A cli to download and install softmods for a factorio scenario')
 
-program
-    .command('test [dir]')
-    .action(async (dir='.',options) => {
-        const tree = require('./lib/tree')
-        const Tree = await tree.dependents(dir)
-        console.log(Tree)
-        console.log(tree.flatten(Tree))
-        console.log(tree.resolve(Tree,{}))
-    })
-
 // if no command then it displays help
 if (process.argv[2]) program.parse(process.argv)
 else program.help()

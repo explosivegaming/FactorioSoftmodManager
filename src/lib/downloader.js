@@ -39,9 +39,13 @@ function downloadJson(dir,moduleName,moduleVersion) {
 
 // will get the json file for a module or download it if it is not already
 async function getJson(dir,moduleName,moduleVersion) {
-    const file = fs.readFileSync(`${dir}${config.jsonDir}/${moduleName}@${moduleVersion}.json`)
-    if (file) return JSON.parse(file)
-    else return await downloadJson(dir,moduleName,moduleVersion).json
+    return new Promise((resolve,reject) => {
+        fs.readFile(`${dir}${config.jsonDir}/${moduleName}@${moduleVersion}.json`,async (error, file) => {
+            if (!error && file) resolve(JSON.parse(file))
+            const rawDownload = await downloadJson(dir,moduleName,moduleVersion)
+            resolve(rawDownload.json)
+        })
+    }).catch(err => console.log(Chalk.red(err)))
 }
 
 // downloads and unzips the module into the module dir, also copies the chached json to the folder

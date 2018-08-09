@@ -295,8 +295,8 @@ async function create_download_queue(dir,queue,index,opt_modules,yes_all) {
             // uses the new latest version to get the download location
             if (!versions.includes(version)) version = Version.max(versions)
             // either gets the json for a version or reads the chached one to get the download location
-            await new Promise((resolve,reject) => {
-                const json = Downloader.getJson(dir,name,version)
+            await new Promise(async (resolve,reject) => {
+                const json = await Downloader.getJson(dir,name,version)
                 // adds the module to the download queue and saves this version of the json
                 queue.push([name,json.version])
                 console.log(Chalk`  Added ${name}@${json.version}: {grey ${json.location}}`)
