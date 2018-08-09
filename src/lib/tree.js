@@ -6,6 +6,7 @@ const config = require('../config.json')
 const fs = require('fs')
 
 // may be a way to combine the online and offline functions
+// offline is unable to read files due to the version being on the end
 // creates a tree of depdnies so each module will be an array of its depedies, no downloading, relies on jsons inside module dirs
 function treeDependenciesOffline(dir,tree={},module_path,moduleName) {
     // reads the modules dir
@@ -215,6 +216,7 @@ async function getDependencies(dir,moduleName,moduleVersion) {
 }
 
 // same as getDependencies but only includes installed modules
+// offline is unable to read files due to the version being on the end
 async function getInstaledDependencies(dir,moduleName,moduleVersion) {
     let tree = await treeDependenciesOffline(dir,{},moduleName,moduleVersion)
     tree = flattenTree(tree)
@@ -239,6 +241,7 @@ async function getDependants(dir,moduleName,moduleVersion) {
 }
 
 // same as getDependants but only includes installed modules
+// offline is unable to read files due to the version being on the end
 async function getInstaledDependants(dir,moduleName,moduleVersion) {
     let tree = await treeDependants(dir,moduleName,moduleVersion,true)
     tree = flattenTree(tree)

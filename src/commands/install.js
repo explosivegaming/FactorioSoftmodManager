@@ -5,6 +5,7 @@ const promptly = require('promptly')
 const config = require('../config.json')
 const Version = require('../lib/version')
 const Downloader = require('../lib/downloader')
+const Tree = require('../lib/tree')
 
 function rmdir(dir) {
     if (fs.statSync(dir).isDirectory()) {
