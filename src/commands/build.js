@@ -3,6 +3,7 @@ const Chalk = require('chalk')
 const zip = require('zip-folder')
 const reader = require('../lib/reader')
 const config = require('../config.json')
+const update = require('./update')
 
 // copies the json file to the exports and updates the location url
 function addJson(data,dest,moduleDir,module_name,baseURL) {
@@ -13,26 +14,27 @@ function addJson(data,dest,moduleDir,module_name,baseURL) {
 }
 
 // zips a module into the exports and if it is a collection it will also add the submodules 
-function addModule(exportsDir,moduleDir,module_name,baseURL) {
+async function addModule(exportsDir,moduleDir,module_name,baseURL) {
     const data = reader.json(moduleDir)
     if (data) {
         if (module_name) module_name = module_name+'.'+data.name
         else module_name = data.name
         addJson(data,exportsDir,moduleDir,module_name,baseURL)
+        if (data.type == 'Collection') {
+            const files = fs.readdirSync(moduleDir)
+            if (!files) console.log(Chalk.red('Could not read collection dir'))
+            else {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i]
+                    if (fs.statSync(moduleDir+'/'+file).isDirectory()) {
+                        await addModule(exportsDir,moduleDir+'/'+file,module_name,baseURL)
+                    }
+                }
+            }
+        }
+        await update(moduleDir)
         if (data.type != 'Scenario') {
             zip(moduleDir,exportsDir+'/'+module_name+'.zip',(error) => {if(!error) console.log(`Exported ${module_name}.zip`)})
-        }
-        if (data.type == 'Collection') {
-            fs.readdir(moduleDir,(error,files) => {
-                if (error) console.log(Chalk.red(error))
-                else {
-                    files.forEach(file => {
-                        if (fs.statSync(moduleDir+'/'+file).isDirectory()) {
-                            addModule(exportsDir,moduleDir+'/'+file,module_name,baseURL)
-                        }
-                    })
-                }
-            })
         }
     }
 }
@@ -43,9 +45,9 @@ module.exports = (dir='.',options) => {
         fs.readdir(dir+config.modulesDir,(error,files) => {
             if (error) console.log(Chalk.red(error))
             else {
-                files.forEach(file => {
+                files.forEach(async file => {
                     if (fs.statSync(dir+config.modulesDir+'/'+file).isDirectory()) {
-                        addModule(dir+'/exports',dir+config.modulesDir+'/'+file,undefined,options.url)
+                        await addModule(dir+'/exports',dir+config.modulesDir+'/'+file,undefined,options.url)
                     }
                 })
             }

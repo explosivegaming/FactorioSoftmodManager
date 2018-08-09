@@ -33,7 +33,7 @@ function addCollectionToScenario(dir,modules,collection_name,collection_version,
     }
 }
 
-module.exports = async (dir='.',options) => {
+module.exports = async (dir='.') => {
     try {
         const data = reader.json(dir+config.jsonFile)
         switch (data.type) {
