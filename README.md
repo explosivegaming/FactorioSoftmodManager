@@ -64,6 +64,14 @@ This is by far the easiest to do as it requires no coding and only needs you to 
 
 Does the same job as init but does not replace any values in the json, used only to update scenarios and collections with new submodules or modules which have been added to them. Dir should be the dir of the scenario or the collection that will be updated.
 
+## Build
+`fsm build [dir] [options]`
+
+Used to automaticaly export all json files to be added to the database; also zips all the modules and moves them to an export folder to be hosted on your url location. When it is given a url to use it will automaticly insert that url onto all modules and then appends the url with the module name.
+
+__Options:__
+* -u, --url \<ulr>: the base url which will be used as the host for the urls, such as a git version (...releases/download/v4.0-core/)
+
 ## Info
 `fsm info [dir] [options]`
 
