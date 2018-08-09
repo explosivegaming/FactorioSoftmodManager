@@ -3,7 +3,6 @@ const Chalk = require('chalk')
 const unzip = require('unzip')
 const config = require('../config.json')
 const valid = require('../lib/valid')
-const Version = require('../lib/version')
 const Request = require('request')
 const request = Request.defaults({baseUrl:config.serverURL})
 

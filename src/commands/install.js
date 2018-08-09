@@ -2,13 +2,9 @@
 const fs = require('fs')
 const Chalk = require('chalk')
 const promptly = require('promptly')
-const unzip = require('unzip')
 const config = require('../config.json')
-const valid = require('../lib/valid')
 const Version = require('../lib/version')
 const Downloader = require('../lib/downloader')
-const Request = require('request')
-const request = Request.defaults({baseUrl:config.serverURL})
 
 function rmdir(dir) {
     if (fs.statSync(dir).isDirectory()) {
