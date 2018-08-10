@@ -54,13 +54,6 @@ program
     .description('Updates modules, submodules and collections to all have the same information')
     .action(require('./commands/update'))
 
-program
-    .command('test [dir]')
-    .action(async (dir='.') => {
-        const Tree = require ('./lib/tree')
-        console.log(await Tree.dependencies(dir))
-    })
-
 // host command (starts a host server, in furture this will connect to a master to allow more than a single host)
 program
     .command('host [dir]')

@@ -70,7 +70,7 @@ function getModuleDir(dir,moduleName,useJsons) {
 function getModulesVersions(dir,moduleName,useJsons) {
     const paths = getModuleDir(dir,moduleName,useJsons)
     const rtn = []
-    paths.forEach(path => rtn.push(path.substring(path.lastIndexOf('_')+1).replace(/\-/gi,'.')))
+    paths.forEach(path => rtn.push(path.substring(path.lastIndexOf('_')+1).replace(/-/gi,'.')))
     return rtn
 }
 
