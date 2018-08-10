@@ -1,5 +1,5 @@
 const valid_keys=['name','type','description','version','modules','submodules','dependencies']
-const keywords_keys=['location','keywords'].concat(valid_keys)
+const keywords_keys=['location','keywords','collection'].concat(valid_keys)
 const author_keys=['author','contact','license'].concat(keywords_keys)
 const config = require('../config.json')
 

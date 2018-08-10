@@ -6,20 +6,25 @@ const config = require('../config.json')
 const update = require('./update')
 
 // copies the json file to the exports and updates the location url
-function addJson(data,dest,moduleDir,module_name,baseURL) {
-    if (baseURL != undefined && data.type != 'Scenario') data.location = baseURL+'/'+module_name+'.zip'
-    if (!fs.existsSync(dest+'/jsons')) fs.mkdirSync(dest+'/jsons')
-    fs.writeFile(dest+'/jsons/'+module_name+'.json',JSON.stringify(data,undefined,4),(error) => {if (!error) console.log(`Exported ${module_name}.json`)})
-    fs.writeFileSync(moduleDir+config.jsonFile,JSON.stringify(data,undefined,4))
+function addJson(data,dest,moduleDir,module_name,moduleVersion,collection,baseURL) {
+    return new Promise((resolve,reject) => {
+        if (baseURL != undefined && data.type != 'Scenario') data.location = baseURL+'/'+module_name+'-'+moduleVersion+'.zip'
+        if (collection) data.collection = collection
+        if (!fs.existsSync(dest+'/jsons')) fs.mkdirSync(dest+'/jsons')
+        fs.writeFile(dest+'/jsons/'+module_name+'-'+moduleVersion+'.json',JSON.stringify(data,undefined,4),(error) => {if (!error) console.log(`Exported ${module_name}-${data.version}.json`)})
+        fs.writeFile(moduleDir+config.jsonFile,JSON.stringify(data,undefined,4),error => {if (error) {reject(error)} else {resolve()}})
+    })
 }
 
 // zips a module into the exports and if it is a collection it will also add the submodules 
 async function addModule(exportsDir,moduleDir,module_name,baseURL) {
     const data = reader.json(moduleDir)
     if (data) {
-        if (module_name) module_name = module_name+'.'+data.name
+        let collection
+        if (module_name) {collection = module_name+'-'+data.version;module_name = module_name+'.'+data.name}
         else module_name = data.name
-        addJson(data,exportsDir,moduleDir,module_name,baseURL)
+        await update(moduleDir)
+        await addJson(data,exportsDir,moduleDir,module_name,data.version,collection,baseURL)
         if (data.type == 'Collection') {
             const files = fs.readdirSync(moduleDir)
             if (!files) console.log(Chalk.red('Could not read collection dir'))
@@ -30,11 +35,12 @@ async function addModule(exportsDir,moduleDir,module_name,baseURL) {
                         await addModule(exportsDir,moduleDir+'/'+file,module_name,baseURL)
                     }
                 }
+                // a collection will require a second update
+                await update(moduleDir)
             }
         }
-        await update(moduleDir)
         if (data.type != 'Scenario') {
-            zip(moduleDir,exportsDir+'/'+module_name+'.zip',(error) => {if(!error) console.log(`Exported ${module_name}.zip`)})
+            zip(moduleDir,exportsDir+'/'+module_name+'-'+data.version+'.zip',(error) => {if(!error) console.log(`Exported ${module_name}-${data.version}.zip`)})
         }
     }
 }

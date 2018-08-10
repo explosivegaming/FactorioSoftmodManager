@@ -2,6 +2,7 @@
 const valid = require('./valid')
 const Chalk = require('chalk')
 const config = require('../config.json')
+const glob = require('glob')
 const fs = require('fs')
 
 // reads the raw data from a json file can accept a dir and then look for the jsonFile in config
@@ -57,8 +58,26 @@ function readModuleValid(dir,noPrintError) {
     }
 }
 
+function getModuleDir(dir,moduleName,useJsons) {
+    let search = config.modulesDir
+    if (useJsons) search = config.jsonDir
+    let moduleNameRaw = moduleName
+    if (moduleNameRaw.lastIndexOf('-') > 0) moduleNameRaw = moduleNameRaw.substring(0,moduleNameRaw.lastIndexOf('-'))
+    if (moduleNameRaw.lastIndexOf('.') > 0) moduleNameRaw = moduleNameRaw.substring(moduleNameRaw.lastIndexOf('.')+1)
+    return glob.sync(dir+search+'/**/'+moduleNameRaw+'*')
+}
+
+function getModulesVersions(dir,moduleName,useJsons) {
+    const paths = getModuleDir(dir,moduleName,useJsons)
+    const rtn = []
+    paths.forEach(path => rtn.push(path.substring(path.lastIndexOf('-')+1)))
+    return rtn
+}
+
 module.exports = {
     raw: readModuleJson,
     getValue: readModuleValue,
-    json: readModuleValid
+    json: readModuleValid,
+    path: getModuleDir,
+    versions: getModulesVersions
 }

@@ -51,7 +51,7 @@ program
 // update command (same as init but only updates modules/submodules)
 program
     .command('update [dir]')
-    .description('place holder for a furture update command')
+    .description('Updates modules, submodules and collections to all have the same information')
     .action(require('./commands/update'))
 
 // host command (starts a host server, in furture this will connect to a master to allow more than a single host)

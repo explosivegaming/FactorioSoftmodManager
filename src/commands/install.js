@@ -5,6 +5,7 @@ const promptly = require('promptly')
 const config = require('../config.json')
 const Version = require('../lib/version')
 const Downloader = require('../lib/downloader')
+const reader = require('../lib/reader')
 const Tree = require('../lib/tree')
 
 function rmdir(dir) {
@@ -209,72 +210,40 @@ function create_index(dir) {
 }
 
 // gets the next json file from the queue, used to find latest versions for modules
-async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_modules,use_force) {
+async function getVersions(dir,index,queue,opt_modules,failed_modules,installed_modules,use_force) {
     const next = queue.pop()
-    const name = next[0]
-    const version = next[1]
+    const name = next.substring(0,next.lastIndexOf('-'))
+    const version = next.substring(next.lastIndexOf('-')+1)
     // if the module is already installed then it will skip the module and add it to the installed list
-    if (installed_modules[name] || fs.existsSync(`${dir+config.modulesDir}/${name.replace('.','/')}`)) {
-        if (use_force) rmdir(`${dir+config.modulesDir}/${name.replace('.','/')}`)
+    if (installed_modules[name]) return
+    // if this lookup as failed previously it will not try again
+    if (failed_modules[next]) return
+    // gets the json file for the version lookup
+    console.log(`  Getting Json for ${name}-${version}...`)
+    const json = await Downloader.getJson(dir,name,version)
+    if (!json) failed_modules[next] = true
+    // once the version required is knowen it is checked if it is installed
+    if (reader.versions(dir,name).includes(json.version)) {
+        if (use_force) rmdir(reader.path(dir,name)[reader.versions(dir,name).indexOf(json.version)])
         else {installed_modules.push(name);return}
     }
-    // if this lookup as failed previously it will not try again, or if the requested version is already found
-    if (failed_modules[name] && failed_modules[name].includes(version)) return
-    if (index[name] && index[name].includes(version.match(/(\d+\.\d+\.\d+)/)[1])) return
-    // gets the json file for the version lookup
-    console.log(`  Getting Json for ${name}@${version}...`)
-    const rawDownload = await Downloader.getJson(dir,name,version)
-    if (!rawDownload) {
-        if (failed_modules[name]) failed_modules[name].push(version)
-        else failed_modules[name] = [version]
-    }
-    const json = rawDownload.json
-    const alterantives = rawDownload.alterantives
     // adds avibile versions to a lookup index
-    index[name] = [rawDownload.latest,alterantives]
+    if (index[name]) index[name].push(json.version)
+    else index[name] = [json.version]
+    let modules = []
     // depending on what type of module it is then it will require different validation
     switch (json.type) {
-        case 'Submodule': {
-            const collection_name = name.substring(0,name.lastIndexOf('.'))
-            if (!index[collection_name]) {
-                console.log(Chalk`   {grey Adding collection to queue: ${collection_name}}`)
-                queue.push([collection_name,'^'+json.version])
-                opt_modules[collection_name] = true
-            }
-        }
-        case 'Module': {
-            // dependencies are added to the lookup queue
-            for (let module_name in json.dependencies) {
-                // if it is already found then it will filter the veresions that can be used
-                if (index[module_name]) index[module_name].filter(possible_version => alterantives.includes(possible_version))
-                // other wise it will add the dependency to the lookup queue
-                else {console.log(Chalk`   {grey Adding dependency to queue: ${module_name}@${json.dependencies[module_name]}}`); queue.push([module_name,json.dependencies[module_name]])}
-                // if the dependency is optional this module is added to the list that request the module (if it is not required bu another)
-                if (json.dependencies[module_name].includes('?') && typeof opt_modules[module_name] != 'boolean') if(opt_modules[module_name]) {opt_modules[module_name].push(name)} else {opt_modules[module_name] = [name]}
-                // if this dependency is required then it will be marked as such
-                else if(opt_modules[module_name] && opt_modules[module_name] != true) opt_modules[module_name] = false
-            }
-        } break
-        case 'Scenario': {
-            // if a secnario is requrested then all the modules for that scenario are requested
-            for (let module_name in json.modules) {
-                // if it is already found then it will filter the veresions that can be used
-                if (index[module_name]) index[module_name].filter(possible_version => alterantives.includes(possible_version))
-                // other wise it will add the dependency to the lookup queue
-                else {console.log(Chalk`   {grey Adding module to queue: ${module_name}@${json.modules[module_name]}}`); queue.push([module_name,json.modules[module_name]])}
-            }
-        } break
-        case 'Collection': {
-            if (opt_modules[name] == true) break
-            // if a collection was requested then all its submodules will also be requested
-            for (let module_name in json.submodules) {
-                // if it is already found then it will filter the veresions that can be used
-                if (index[name+'.'+module_name]) index[name+'.'+module_name].filter(possible_version => alterantives.includes(possible_version))
-                // other wise it will add the dependency to the lookup queue
-                // also sets the opt module index to true as this shows that it will be installed as a full collection
-                else {console.log(Chalk`   {grey Adding submodule to queue: ${module_name}@${json.submodules[module_name].version}}`);queue.push([json.name+'.'+module_name,json.submodules[module_name].version]);opt_modules[json.name+'.'+module_name]=true}
-            }
-        } break
+        case 'Submodule':
+        case 'Module': modules = json.dependencies; break
+        case 'Scenario': modules = json.modules; break
+        case 'Collection': for (let moduleName in json.submodules) modules[name+'.'+moduleName] = json.submodules[moduleName].version; break
+    }
+    // the modules are sorted based on wheather their are optional or not
+    for (let moduleName in modules) {
+        // if the dependency is optional this module is added to the list that request the module (if it is not required bu another)
+        if (modules[moduleName].includes('?') && typeof opt_modules[moduleName] != 'boolean') if(opt_modules[moduleName]) {opt_modules[moduleName].push(name+'-'+json.version)} else {opt_modules[moduleName] = [name+'-'+json.version]}
+        // if this dependency is required then it will be marked as such
+        else if(opt_modules[moduleName] != true) opt_modules[moduleName] = false
     }
 }
 
@@ -282,27 +251,28 @@ async function getJsons(dir,index,queue,opt_modules,failed_modules,installed_mod
 async function create_download_queue(dir,queue,index,opt_modules,yes_all) {
     // loops or the index which was created by the json lookups
     for (let module_name in index) {
-        const versions = index[module_name][1]
-        let version = index[module_name][0]
-        if (opt_modules[module_name] != true) {
-            // if the module is optional then the user is asked if it should be installed, unless -y is given
-            if (opt_modules[module_name] && !yes_all) {
-                console.log(`  ${module_name}@${version} has been requested by ${opt_modules[module_name].length} other modules as an optinal dependiency.`)
-                if (!await promptly.confirm(Chalk`   Would you like to install this module: (yes)`,{default:'yes'})) return
+        const done = []
+        for (let i = 0; i < index[module_name].length; i++) {
+            const version = index[module_name][i]
+            if (!done.includes(version) && opt_modules[module_name] != true) {
+                done.push(version)
+                let install = true
+                // if the module is optional then the user is asked if it should be installed, unless -y is given
+                if (opt_modules[module_name] && !yes_all) {
+                    console.log(`  ${module_name}-${version} has been requested by ${opt_modules[module_name].length} other modules as an optinal dependiency.`)
+                    if (!await promptly.confirm(Chalk`   Would you like to install this module: (yes)`,{default:'yes'})) install = false
+                }
+                // either gets the json for a version or reads the chached one to get the download location
+                if (install) {
+                    await new Promise(async (resolve,reject) => {
+                        const json = await Downloader.getJson(dir,module_name,version)
+                        // adds the module to the download queue and saves this version of the json
+                        queue.push([module_name,json.version])
+                        console.log(Chalk`  Added ${module_name} Version ${json.version}: {grey ${json.location}}`)
+                        resolve()
+                    }).catch(err => console.log(Chalk.red(err)))
+                }
             }
-            // if there are no vaild version then it thows an error
-            if (versions.length == 0) throw new Error(`There was a version confilct for ${module_name} no valid versions were found to match all requirements`)
-            // if the latest is convlicking with the allowed version then the latest from that list is used
-            // uses the new latest version to get the download location
-            if (!versions.includes(version)) version = Version.max(versions)
-            // either gets the json for a version or reads the chached one to get the download location
-            await new Promise(async (resolve,reject) => {
-                const json = await Downloader.getJson(dir,name,version)
-                // adds the module to the download queue and saves this version of the json
-                queue.push([name,json.version])
-                console.log(Chalk`  Added ${name}@${json.version}: {grey ${json.location}}`)
-                resolve()
-            }).catch(err => console.log(Chalk.red(err)))
         }
     }
 }
@@ -318,45 +288,52 @@ module.exports = async (name='.',dir='.',options) => {
             console.log(Chalk` {underline Copying Locale Files}`)
             find_locale(dir+config.modulesDir,dir+config.localeDir)
         } else {
-            const index_queue = []
+            let index_queue = []
             const download_queue = []
             const index = {}
             const failed_modules = {}
             const installed_modules = []
             const opt_modules = {}
-            // adds the requested modules and version to the queue
-            if (options.moduleVersion) index_queue.push([name,options.moduleVersion])
-            else if (name.lastIndexOf('@') > 0) index_queue.push([name.substring(0,name.lastIndexOf('@')),name.substring(name.lastIndexOf('@')+1)])
-            else index_queue.push([name,'*'])
             // if no module is given then it will look in the current dir to find a module json
             if (name == '.') {
                 if (fs.existsSync(name+config.jsonFile) && fs.statSync(name+config.jsonFile).isFile()) {
                     const json = JSON.parse(fs.readFileSync(name+config.jsonFile))
                     if (json.type == 'Scenario') {
                         index_queue.pop()
-                        for (let module_name in json.modules) index_queue.push([module_name,json.modules[module_name]])
+                        for (let moduleName in json.modules) index_queue = index_queue.concat(Tree.module.dependencies(dir,moduleName,json.modules[module_name]))
                     }
                 }
+            } else {
+                // adds the requested modules and version and all of the required modules into the queue
+                let moduleName = name
+                let moduleVersion = '*'
+                if (options.moduleVersion) moduleVersion = options.moduleVersion
+                else if (name.lastIndexOf('-') > 0) {moduleName = name.substring(0,name.lastIndexOf('-')); moduleVersion = name.substring(name.lastIndexOf('-')+1)}
+                else if (name.lastIndexOf('@') > 0) {moduleName = name.substring(0,name.lastIndexOf('@')); moduleVersion = name.substring(name.lastIndexOf('@')+1)}
+                index_queue = await Tree.module.dependencies(dir,moduleName,moduleVersion)
+                index_queue.push(moduleName+'-'+moduleVersion)
             }
             // starts install
             console.log(Chalk` {underline Initiating Scenario Dir}`)
             await init_dir(dir)
             console.log(Chalk` {underline Finding Module Versions}`)
-            while (index_queue.length > 0) await getJsons(dir,index,index_queue,opt_modules,failed_modules,installed_modules,options.force)
+            while (index_queue.length > 0) await getVersions(dir,index,index_queue,opt_modules,failed_modules,installed_modules,options.force)
+            console.log(opt_modules)
             // warning message if there were modules already installed that were requested
             if (installed_modules.length > 0) {
-                console.log('  The following modules were skiped due to them already being installed: ')
-                console.log('   '+installed_modules.join(', '))
-                console.log('  Please use -f to force a reinstall of all modules')
+                console.log(Chalk.red('  The following modules were skiped due to them already being installed: '))
+                console.log(Chalk.grey('   '+installed_modules.join(', ')))
+                console.log(Chalk.red('  Please use -f to force a reinstall of all modules'))
             }
             // creates a download queue and then downloads the modules
-            console.log(Chalk` {underline Selecting Version Download}`)
+            console.log(Chalk` {underline Selecting Download Versions}`)
             await create_download_queue(dir,download_queue,index,opt_modules,options.yesAll)
             console.log(Chalk` {underline Downloading Modules}`)
             while (download_queue.length > 0) {
                 const next = download_queue.pop()
                 await Downloader.getModule(dir,next[0],next[1])
             }
+            return
             console.log(Chalk` {underline Creating Lua Index}`)
             await create_index(dir)
             console.log(Chalk` {underline Copying Locale Files}`)
