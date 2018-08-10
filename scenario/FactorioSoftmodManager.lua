@@ -221,7 +221,7 @@ setmetatable(global,Manager.global.__global)
 Manager.sandbox = setmetatable({
     -- can not use existing keys of _G
     verbose=Manager.verbose,
-    loaded_modules=ReadOnlyManager,
+    loaded_modules={}, -- this is over riden later
     module_verbose=false,
     module_exports=false
 },{
@@ -297,6 +297,7 @@ require = Manager.require
 Manager.loadModules = setmetatable({},
     {
         __metatable=false,
+        __index=Manager.require,
         __call=function(tbl)
             -- ReadOnlyManager used to trigger verbose change
             ReadOnlyManager.currentState = 'moduleLoad'
@@ -409,6 +410,7 @@ Manager.loadModules = setmetatable({},
         end
     }
 )
+Manager.sandbox.loaded_modules = Manager.loadModules
 
 --- A more detailed replacement for the lua error function to allow for handlers to be added; repleaces default error so error can be used instead of Manager.error
 -- @function Manager.error
