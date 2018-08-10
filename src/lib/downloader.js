@@ -67,7 +67,8 @@ function downloadModule(dir,moduleName,moduleVersion) {
         }
         path = dir+config.modulesDir+'/'+path
         // need a better check for valid urls, "url" was just a place holder while making the jsons
-        if (url == 'url') return
+        if (url == 'url') {reject('Invalid Url');return}
+        if (fs.existsSync(path)) {reject('Already Installed: '+moduleName+'-'+moduleVersion);return}
         console.log(Chalk`  Downloading ${moduleName}-${version}: {grey ${url}}`)
         // starts the download and extraction
         Request(url).pipe(unzip.Extract({path:path})).on('close',() => {
@@ -81,7 +82,7 @@ function downloadModule(dir,moduleName,moduleVersion) {
             }
             resolve()
         })
-    })
+    }).catch(err => console.log(Chalk.red(err)))
 }
 
 module.exports = {

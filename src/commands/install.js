@@ -318,7 +318,6 @@ module.exports = async (name='.',dir='.',options) => {
             await init_dir(dir)
             console.log(Chalk` {underline Finding Module Versions}`)
             while (index_queue.length > 0) await getVersions(dir,index,index_queue,opt_modules,failed_modules,installed_modules,options.force)
-            console.log(opt_modules)
             // warning message if there were modules already installed that were requested
             if (installed_modules.length > 0) {
                 console.log(Chalk.red('  The following modules were skiped due to them already being installed: '))
