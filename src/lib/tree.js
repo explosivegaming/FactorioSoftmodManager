@@ -30,11 +30,10 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                 if (fs.statSync(module_path).isDirectory()) {
                     // if it is a dir then it will try to read the json file
                     const json = reader.json(module_path)
-                    console.log(module_path)
                     // catches errors while reading the module
                     if (!json) throw new Error('Could not read json for: '+module_path)
-                    if (moduleName.lastIndexOf('-') > 0) moduleName = moduleName.substring(0,moduleName.lastIndexOf('-'))
-                    const treeName = moduleName+'-'+json.version
+                    if (moduleName.lastIndexOf('_') > 0) moduleName = moduleName.substring(0,moduleName.lastIndexOf('_'))
+                    const treeName = moduleName+'_'+json.version
                     // modules and submodules will insert values into their list rather than load more modules
                     if (tree[treeName]) {resolve(tree[treeName]);return}
                     tree[treeName] = {}
@@ -42,7 +41,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                         case 'Scenario': {
                             // if it is a scenario then it will read all the modules in the scenario
                             for (let sub_module in json.modules) {
-                                const treeNameSub = sub_module+'-'+json.modules[sub_module]
+                                const treeNameSub = sub_module+'_'+json.modules[sub_module]
                                 tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,sub_module)
                             }
                         } break;
@@ -50,7 +49,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                             // for a collection it will read all the submodules from they own file not from the included json
                             for (let sub_module in json.submodules) {
                                 let sub_module_name = moduleName+'.'+sub_module
-                                const treeNameSub = sub_module_name+'-'+json.submodules[sub_module].version
+                                const treeNameSub = sub_module_name+'_'+json.submodules[sub_module].version
                                 tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,sub_module_name)
                             }
                         } break;
@@ -58,7 +57,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                         case 'Module': {
                             // every dependcy is loaded here
                             for (let dependency in json.dependencies) {
-                                const treeNameSub = dependency+'-'+json.dependencies[dependency]
+                                const treeNameSub = dependency+'_'+json.dependencies[dependency]
                                 tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,dependency)
                             }
                         } break;
@@ -85,8 +84,8 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
                     // loops over files in the module dir
                     for (i=0; i < files.length; i++) {
                         let file = files[i]
-                        const version = file.substring(file.lastIndexOf('-')+1)
-                        const name = file.substring(0,file.lastIndexOf('-'))
+                        const version = file.substring(file.lastIndexOf('_')+1)
+                        const name = file.substring(0,file.lastIndexOf('_'))
                         // runs this function again for each module
                         if (fs.statSync(dir+config.modulesDir+'/'+file).isDirectory()) await treeDependencies(dir,tree,name,version,false)
                     }
@@ -97,7 +96,7 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
         } else {
             // if it is a dir then it will try to read the json file
             const json = await Downloader.getJson(dir,moduleName,moduleVersion)
-            const treeName = moduleName+'-'+json.version
+            const treeName = moduleName+'_'+json.version
             // catches errors while reading the module
             if (!json) throw new Error('Could not read json for: '+treeName)
             // modules and submodules will insert values into their list rather than load more modules
@@ -107,7 +106,7 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
                 case 'Scenario': {
                     // if it is a scenario then it will read all the modules in the scenario
                     for (let sub_module in json.modules) {
-                        const treeNameSub = sub_module+'-'+json.modules[sub_module]
+                        const treeNameSub = sub_module+'_'+json.modules[sub_module]
                         tree[treeName][treeNameSub] = await treeDependencies(dir,tree,sub_module,json.modules[sub_module],false) 
                     }
                 } break;
@@ -115,7 +114,7 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
                     // for a collection it will read all the submodules from they own file not from the included json
                     for (let sub_module in json.submodules) {
                         let sub_module_name = moduleName+'.'+sub_module
-                        const treeNameSub = sub_module_name+'-'+json.submodules[sub_module].version
+                        const treeNameSub = sub_module_name+'_'+json.submodules[sub_module].version
                         tree[treeName][treeNameSub] = await treeDependencies(dir,tree,sub_module_name,json.submodules[sub_module].version,false)
                     }
                 } break;
@@ -123,7 +122,7 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
                 case 'Module': {
                     // every dependcy is loaded here
                     for (let dependency in json.dependencies) {
-                        const treeNameSub = dependency+'-'+json.dependencies[dependency]
+                        const treeNameSub = dependency+'_'+json.dependencies[dependency]
                         tree[treeName][treeNameSub] = await treeDependencies(dir,tree,dependency,json.dependencies[dependency],false)
                     }
                 } break;
@@ -157,6 +156,7 @@ async function treeDependants(dir,moduleName,moduleVersion,offline) {
 }
 
 // this converts the tree to not require multiple indexing
+// does not quite qork due to version diffrences
 function flattenTree(tree,newTree={},moduleName) {
     if (!moduleName) {
         // no module name when called by user
@@ -180,7 +180,7 @@ function flattenTree(tree,newTree={},moduleName) {
                     if (newTree[moduleName].indexOf(sub[i]) < 0 && moduleName != sub[i]) newTree[moduleName].push(sub[i])
                 }
             }
-            // returns only this module part for use of getting the sub-dependies
+            // returns only this module part for use of getting the sub_dependies
             return newTree[moduleName]
         }
     }
@@ -215,7 +215,7 @@ function resolveTree(tree,newTree={},qurey) {
 async function getDependencies(dir,moduleName,moduleVersion) {
     let tree = await treeDependencies(dir,{},moduleName,moduleVersion)
     tree = flattenTree(tree)
-    return tree[moduleName+'-'+moduleVersion]
+    return tree[moduleName+'_'+moduleVersion]
 }
 
 // same as getDependencies but only includes installed modules
@@ -223,14 +223,14 @@ async function getDependencies(dir,moduleName,moduleVersion) {
 async function getInstaledDependencies(dir,moduleName,moduleVersion) {
     let tree = await treeDependenciesOffline(dir,{},moduleName,moduleVersion)
     tree = flattenTree(tree)
-    return tree[moduleName+'-'+moduleVersion]
+    return tree[moduleName+'_'+moduleVersion]
 }
 
 // same as getDependencies but does not include optional dependencies
 async function getRquiredDependencies(dir,moduleName,moduleVersion) {
     let tree = await treeDependencies(dir,{},moduleName,moduleVersion)
     tree = flattenTree(tree)
-    return tree[moduleName+'-'+moduleVersion].filter(value => value.indexOf('?') < 0)
+    return tree[moduleName+'_'+moduleVersion].filter(value => value.indexOf('?') < 0)
 }
 
 // gets the modules which are dependent of this module
@@ -238,8 +238,8 @@ async function getDependants(dir,moduleName,moduleVersion) {
     let tree = await treeDependants(dir,moduleName,moduleVersion)
     tree = flattenTree(tree)
     let rtn = []
-    if (tree[moduleName+'-'+moduleVersion]) rtn = rtn.concat(tree[moduleName+'-'+moduleVersion])
-    if (tree[moduleName+'-?'+moduleVersion]) rtn = rtn.concat(tree[moduleName+'-?'+moduleVersion])
+    if (tree[moduleName+'_'+moduleVersion]) rtn = rtn.concat(tree[moduleName+'_'+moduleVersion])
+    if (tree[moduleName+'_?'+moduleVersion]) rtn = rtn.concat(tree[moduleName+'_?'+moduleVersion])
     return rtn
 }
 
@@ -249,7 +249,7 @@ async function getInstaledDependants(dir,moduleName,moduleVersion) {
     let tree = await treeDependants(dir,moduleName,moduleVersion,true)
     tree = flattenTree(tree)
     const rtn = []
-    if (tree[moduleName+'-'+moduleVersion]) rtn.concat(tree[moduleName+'-'+moduleVersion])
+    if (tree[moduleName+'_'+moduleVersion]) rtn.concat(tree[moduleName+'_'+moduleVersion])
     return rtn
 }
 
@@ -258,7 +258,7 @@ async function getRquiredDependants(dir,moduleName,moduleVersion) {
     let tree = await treeDependants(dir,moduleName,moduleVersion)
     tree = flattenTree(tree)
     const rtn = []
-    if (tree[moduleName+'-'+moduleVersion]) rtn.concat(tree[moduleName+'-'+moduleVersion])
+    if (tree[moduleName+'_'+moduleVersion]) rtn.concat(tree[moduleName+'_'+moduleVersion])
     return rtn
 }
 

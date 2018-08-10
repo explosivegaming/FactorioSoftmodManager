@@ -80,7 +80,7 @@ module.exports = async (dir='.') => {
                             module_data.type = 'Submodule'
                             if (valid.submodule(module_data)) {data.submodules[name] = module_data;submodule_versions.push(module_data.version)}
                             data.version = Version.max(submodule_versions) || data.version || '1.0.0'
-                            module_data.collection = data.name+'-'+data.version
+                            module_data.collection = data.name+'_'+data.version
                             fs.writeFileSync(`${dir}/${dir_name}${config.jsonFile}`,JSON.stringify(module_data,undefined,4))
                         }
                     }

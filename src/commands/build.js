@@ -8,10 +8,10 @@ const update = require('./update')
 // copies the json file to the exports and updates the location url
 function addJson(data,dest,moduleDir,module_name,moduleVersion,collection,baseURL) {
     return new Promise((resolve,reject) => {
-        if (baseURL != undefined && data.type != 'Scenario') data.location = baseURL+'/'+module_name+'-'+moduleVersion+'.zip'
+        if (baseURL != undefined && data.type != 'Scenario') data.location = baseURL+'/'+module_name+'_'+moduleVersion+'.zip'
         if (collection) data.collection = collection
         if (!fs.existsSync(dest+'/jsons')) fs.mkdirSync(dest+'/jsons')
-        fs.writeFile(dest+'/jsons/'+module_name+'-'+moduleVersion+'.json',JSON.stringify(data,undefined,4),(error) => {if (!error) console.log(`Exported ${module_name}-${data.version}.json`)})
+        fs.writeFile(dest+'/jsons/'+module_name+'_'+moduleVersion+'.json',JSON.stringify(data,undefined,4),(error) => {if (!error) console.log(`Exported ${module_name}_${data.version}.json`)})
         fs.writeFile(moduleDir+config.jsonFile,JSON.stringify(data,undefined,4),error => {if (error) {reject(error)} else {resolve()}})
     })
 }
@@ -21,7 +21,7 @@ async function addModule(exportsDir,moduleDir,module_name,baseURL) {
     const data = reader.json(moduleDir)
     if (data) {
         let collection
-        if (module_name) {collection = module_name+'-'+data.version;module_name = module_name+'.'+data.name}
+        if (module_name) {collection = module_name+'_'+data.version;module_name = module_name+'.'+data.name}
         else module_name = data.name
         await update(moduleDir)
         await addJson(data,exportsDir,moduleDir,module_name,data.version,collection,baseURL)
@@ -40,7 +40,7 @@ async function addModule(exportsDir,moduleDir,module_name,baseURL) {
             }
         }
         if (data.type != 'Scenario') {
-            zip(moduleDir,exportsDir+'/'+module_name+'-'+data.version+'.zip',(error) => {if(!error) console.log(`Exported ${module_name}-${data.version}.zip`)})
+            zip(moduleDir,exportsDir+'/'+module_name+'_'+data.version+'.zip',(error) => {if(!error) console.log(`Exported ${module_name}_${data.version}.zip`)})
         }
     }
 }

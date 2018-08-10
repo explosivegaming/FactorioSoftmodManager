@@ -39,7 +39,10 @@ async function init_dir(dir,force) {
                             if (err) console.log(Chalk`{red Error creating dir ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
                             else console.log(`  Created new dir: ${fs.realpathSync(dir+'/'+file_name)}`)
                             resolve()
-                        })
+                        }) 
+                    } else {
+                        // need a way to remove the dir sync or like wise so it can be remake
+                        resolve()
                     }
                 } else {
                     // if it is a file then it is copyed, must not already exist
@@ -49,7 +52,7 @@ async function init_dir(dir,force) {
                         resolve()
                     })
                 }
-            }
+            } else resolve()
         }).catch(err => console.log(Chalk.red(err)))
     }
 }
@@ -137,76 +140,46 @@ function find_locale(src,dest) {
     })
 }
 
-// adds a module or submodules from a collection into the lua index
-function append_index(index,path,modules,collection) {
-    const index_path = path.substring(path.indexOf(config.modulesDir))
-    // loops over the modules, data objects
-    for (let name in modules) {
-        const mod = modules[name]
-        if (collection) name = collection+'.'+name
-        switch (mod.type) {
-            case undefined: break
-            default: break
-            case 'Collection': {
-                // if it is a collection it will repeat but for the submodules of the collection
-                append_index(index,`${path}/${mod.name}`,mod.submodules,mod.name)
-            } break
-            case 'Submodule':
-            case 'Module': {
-                // if it is a module then its name and path are added to the index
-                console.log(`  Adding ${name} to lua index`)
-                if (fs.existsSync(`${path}/${mod.name}`) && fs.existsSync(`${path}/${mod.name}${config.luaFile}`)) {
-                    index[name] = `${index_path}/${mod.name}`
-                }
-            } break
-        }
-    }
-}
-
 // creates the lua index file after searching modules dir
 function create_index(dir) {
-    const index = {}
+    const index = []
     const module_path = dir+config.modulesDir
     const index_path = module_path+config.modulesIndex
     // reads the modules dir
-    return new Promise((resolve,reject) => {
-        fs.readdir(module_path,(err,files) => {
-            if (err) reject(`Could not open module dir: ${err}`)
-            else {
-                // loops over files in the module dir
-                files.forEach(file => {
-                    if (fs.statSync(`${module_path}/${file}`).isDirectory()) {
-                        // if it is a dir then it will try to read the json file
-                        const mod = fs.readFileSync(`${module_path}/${file}${config.jsonFile}`)
-                        if (!mod) reject(`Could not read module: ${file}`)
-                        else {
-                            // if successful it will parse the json and call append_index
-                            const data = JSON.parse(mod)
-                            if (data.submodules) append_index(index,`${module_path}/${data.name}`,data.submodules,data.name)
-                            else {
-                                const modules = {}
-                                modules[data.name]=data
-                                append_index(index,module_path,modules)
-                            }
-                        }
+    return new Promise(async (resolve,reject) => {
+        const installedModulesTree = await Tree.dependenciesOffline(dir)
+        const installedModules = Tree.flatten(installedModulesTree)
+        for (let moduleName in installedModules) {
+            let currentIndex = 0
+            installedModules[moduleName].forEach(subModule => {
+                const subversions = reader.versions(dir,subModule)
+                subModule = subModule.substring(0,subModule.lastIndexOf('_'))
+                subversions.forEach(subModVersion => {
+                    if (index.indexOf(subModule+'_'+subModVersion)) {
+                        if (currentIndex < index.indexOf(subModule+'_'+subModVersion)) currentIndex = index.indexOf(subModule+'_'+subModVersion)+1
                     }
                 })
-                // once all modules are added it will create the lua file
-                let write_str = ''
-                // first loops over each index and creates a string of the index object in a lua friendly way
-                for (let module_name in index) {
-                    const module_path = index[module_name]
-                    // if it has GlobalLib in its name then it is put at the front of the index
-                    if (module_name.includes(config.indexPriority)) write_str=(config.indexBody.replace('${module_name}',module_name).replace('${module_path}',module_path))+write_str
-                    else write_str=write_str+(config.indexBody.replace('${module_name}',module_name).replace('${module_path}',module_path))
-                }
-                // once it has formed the string it will add the header and footer to the file and create the file
-                fs.writeFile(index_path,config.indexHeader+write_str+config.indexFooter,err => {
-                    if (err) reject(`Error writing file: ${err}`)
-                    else console.log(`  Wrote file: ${fs.realpathSync(index_path)}`)
-                    resolve()
-                })
-            }
+            })
+            const versions = reader.versions(dir,moduleName)
+            // need a better way to get the version number
+            if (moduleName == moduleName.substring(0,moduleName.lastIndexOf('_'))+'_'+versions[0]) index.splice(currentIndex,0,moduleName)
+        }
+        // once all modules are added it will create the lua file
+        let write_str = ''
+        // first loops over each index and creates a string of the index object in a lua friendly way
+        index.forEach(module_name => {
+            const modulePaths = reader.path(dir,module_name)
+            // this part works as the module name has a version attatched to it
+            let module_path = modulePaths[0]
+            modulePaths.forEach(path => {if (path.includes(module_name)) module_path = path})
+            // if it has GlobalLib in its name then it is put at the front of the index
+            write_str=write_str+(config.indexBody.replace('${module_name}',module_name.replace('_','@')).replace('${module_path}',module_path))
+        })
+        // once it has formed the string it will add the header and footer to the file and create the file
+        fs.writeFile(index_path,config.indexHeader+write_str+config.indexFooter,err => {
+            if (err) reject(`Error writing file: ${err}`)
+            else console.log(`  Wrote file: ${fs.realpathSync(index_path)}`)
+            resolve()
         })
     }).catch(err => console.log(Chalk.red(err)))
 }
@@ -214,14 +187,14 @@ function create_index(dir) {
 // gets the next json file from the queue, used to find latest versions for modules
 async function getVersions(dir,index,queue,opt_modules,failed_modules,installed_modules,use_force) {
     const next = queue.pop()
-    const name = next.substring(0,next.lastIndexOf('-'))
-    const version = next.substring(next.lastIndexOf('-')+1)
+    const name = next.substring(0,next.lastIndexOf('_'))
+    const version = next.substring(next.lastIndexOf('_')+1)
     // if the module is already installed then it will skip the module and add it to the installed list
     if (installed_modules[name]) return
     // if this lookup as failed previously it will not try again
     if (failed_modules[next]) return
     // gets the json file for the version lookup
-    console.log(`  Getting Json for ${name}-${version}...`)
+    console.log(`  Getting Json for ${name}_${version}...`)
     const json = await Downloader.getJson(dir,name,version)
     if (!json) failed_modules[next] = true
     // once the version required is knowen it is checked if it is installed
@@ -243,7 +216,7 @@ async function getVersions(dir,index,queue,opt_modules,failed_modules,installed_
     // the modules are sorted based on wheather their are optional or not
     for (let moduleName in modules) {
         // if the dependency is optional this module is added to the list that request the module (if it is not required bu another)
-        if (modules[moduleName].includes('?') && typeof opt_modules[moduleName] != 'boolean') if(opt_modules[moduleName]) {opt_modules[moduleName].push(name+'-'+json.version)} else {opt_modules[moduleName] = [name+'-'+json.version]}
+        if (modules[moduleName].includes('?') && typeof opt_modules[moduleName] != 'boolean') if(opt_modules[moduleName]) {opt_modules[moduleName].push(name+'_'+json.version)} else {opt_modules[moduleName] = [name+'_'+json.version]}
         // if this dependency is required then it will be marked as such
         else if(opt_modules[moduleName] != true) opt_modules[moduleName] = false
     }
@@ -259,9 +232,9 @@ async function create_download_queue(dir,queue,index,opt_modules,yes_all) {
             if (!done.includes(version) && opt_modules[module_name] != true) {
                 done.push(version)
                 let install = true
-                // if the module is optional then the user is asked if it should be installed, unless -y is given
+                // if the module is optional then the user is asked if it should be installed, unless _y is given
                 if (opt_modules[module_name] && !yes_all) {
-                    console.log(`  ${module_name}-${version} has been requested by ${opt_modules[module_name].length} other modules as an optinal dependiency.`)
+                    console.log(`  ${module_name}_${version} has been requested by ${opt_modules[module_name].length} other modules as an optinal dependiency.`)
                     if (!await promptly.confirm(Chalk`   Would you like to install this module: (yes)`,{default:'yes'})) install = false
                 }
                 // either gets the json for a version or reads the chached one to get the download location
@@ -310,10 +283,10 @@ module.exports = async (name='.',dir='.',options) => {
                 let moduleName = name
                 let moduleVersion = '*'
                 if (options.moduleVersion) moduleVersion = options.moduleVersion
-                else if (name.lastIndexOf('-') > 0) {moduleName = name.substring(0,name.lastIndexOf('-')); moduleVersion = name.substring(name.lastIndexOf('-')+1)}
+                else if (name.lastIndexOf('_') > 0) {moduleName = name.substring(0,name.lastIndexOf('_')); moduleVersion = name.substring(name.lastIndexOf('_')+1)}
                 else if (name.lastIndexOf('@') > 0) {moduleName = name.substring(0,name.lastIndexOf('@')); moduleVersion = name.substring(name.lastIndexOf('@')+1)}
                 index_queue = await Tree.module.dependencies(dir,moduleName,moduleVersion)
-                index_queue.push(moduleName+'-'+moduleVersion)
+                index_queue.push(moduleName+'_'+moduleVersion)
             }
             // starts install
             console.log(Chalk` {underline Initiating Scenario Dir}`)
@@ -324,7 +297,7 @@ module.exports = async (name='.',dir='.',options) => {
             if (installed_modules.length > 0) {
                 console.log(Chalk.red('  The following modules were skiped due to them already being installed: '))
                 console.log(Chalk.grey('   '+installed_modules.join(', ')))
-                console.log(Chalk.red('  Please use -f to force a reinstall of all modules'))
+                console.log(Chalk.red('  Please use _f to force a reinstall of all modules'))
             }
             // creates a download queue and then downloads the modules
             console.log(Chalk` {underline Selecting Download Versions}`)
@@ -334,7 +307,6 @@ module.exports = async (name='.',dir='.',options) => {
                 const next = download_queue.pop()
                 await Downloader.getModule(dir,next[0],next[1])
             }
-            return
             console.log(Chalk` {underline Creating Lua Index}`)
             await create_index(dir)
             console.log(Chalk` {underline Copying Locale Files}`)

@@ -7,7 +7,7 @@ const valid = require('../lib/valid')
 
 // logs basic detail all jsons will have
 function basic(data){
-    console.log(Chalk` {underline ${data.name} - ${data.version} (${data.type})}\n\n  ${data.description}`)
+    console.log(Chalk` {underline ${data.name} _ ${data.version} (${data.type})}\n\n  ${data.description}`)
 }
 
 // logs detail that some jsons will have

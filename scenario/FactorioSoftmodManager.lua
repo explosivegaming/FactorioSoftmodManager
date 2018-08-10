@@ -274,7 +274,7 @@ Manager.require = setmetatable({
             -- still no then it will look for all modules that include this one in the name (like a collection)
             local collection = {}
             for module_name,path in pairs(moduleIndex) do
-                if module_name:find('@') and module_name:sub(1,module_name:find('@')-1) == path_no_version then return rawget(Manager.loadModdules,module_name) end
+                if module_name:find('@') and module_name:sub(1,module_name:find('@')-1) == path_no_version then return rawget(Manager.loadModules,module_name) end
                 if module_name:find(path_no_version) then 
                     local start, _end = module_name:find(path_no_version)
                     collection[module_name:sub(_end+2)] = rawget(Manager.loadModules,module_name)
