@@ -26,8 +26,9 @@ async function init_dir(dir,force) {
     const files = fs.readdirSync(scenario)
     if (!files) throw new Error('Unable to find scenario template')
     // loop over files in scenario dir
-    return new Promise((resolve,reject) => {
-        files.forEach(file_name => {
+    for (let i = 0; i < files.length; i++) {
+        let file_name = files[i]
+        await new Promise((resolve,reject) => {
             if (!fs.existsSync(`${dir}/${file_name}`) || force) {
                 // if it does not exist or if force flag is set
                 if (fs.statSync(`${scenario}/${file_name}`).isDirectory()) {
@@ -37,6 +38,7 @@ async function init_dir(dir,force) {
                         fs.mkdir(`${dir}/${file_name}`,err => {
                             if (err) console.log(Chalk`{red Error creating dir ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
                             else console.log(`  Created new dir: ${fs.realpathSync(dir+'/'+file_name)}`)
+                            resolve()
                         })
                     }
                 } else {
@@ -44,12 +46,12 @@ async function init_dir(dir,force) {
                     fs.copyFile(`${scenario}/${file_name}`,`${dir}/${file_name}`,err => {
                         if (err) console.log(Chalk`{red Error writing file ${fs.realpathSync(dir)}/${file_name}: ${err}}`) 
                         else console.log(`  Wrote file: ${fs.realpathSync(dir+'/'+file_name)}`)
+                        resolve()
                     })
                 }
             }
-        })
-        resolve()
-    }).catch(err => console.log(Chalk.red(err)))
+        }).catch(err => console.log(Chalk.red(err)))
+    }
 }
 
 // copies and then deletes the locale files of a module, can be a folders or files nammed by the locale eg en or fr
