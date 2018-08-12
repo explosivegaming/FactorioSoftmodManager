@@ -152,7 +152,7 @@ function create_index(dir) {
         for (let moduleName in installedModules) {
             let currentIndex = 0
             installedModules[moduleName].forEach(subModule => {
-                const subversions = reader.versions(dir,subModule)
+                const subversions = reader.installedVersions(dir,subModule)
                 subModule = subModule.substring(0,subModule.lastIndexOf('_'))
                 subversions.forEach(subModVersion => {
                     if (index.indexOf(subModule+'_'+subModVersion)) {
@@ -160,7 +160,7 @@ function create_index(dir) {
                     }
                 })
             })
-            const versions = reader.versions(dir,moduleName)
+            const versions = reader.installedVersions(dir,moduleName)
             // need a better way to get the version number
             if (moduleName == moduleName.substring(0,moduleName.lastIndexOf('_'))+'_'+versions[0]) index.splice(currentIndex,0,moduleName)
         }
@@ -187,8 +187,7 @@ function create_index(dir) {
 // gets the next json file from the queue, used to find latest versions for modules
 async function getVersions(dir,index,queue,opt_modules,failed_modules,installed_modules,use_force) {
     const next = queue.pop()
-    const name = next.substring(0,next.lastIndexOf('_'))
-    const version = next.substring(next.lastIndexOf('_')+1)
+    const [name,version] = Version.extract(next,true)
     // if the module is already installed then it will skip the module and add it to the installed list
     if (installed_modules[name]) return
     // if this lookup as failed previously it will not try again
@@ -198,8 +197,8 @@ async function getVersions(dir,index,queue,opt_modules,failed_modules,installed_
     const json = await Downloader.getJson(dir,name,version)
     if (!json) failed_modules[next] = true
     // once the version required is knowen it is checked if it is installed
-    if (reader.versions(dir,name).includes(json.version)) {
-        if (use_force) rmdir(reader.path(dir,name)[reader.versions(dir,name).indexOf(json.version)])
+    if (reader.installedVersions(dir,name).includes(json.version)) {
+        if (use_force) rmdir(reader.path(dir,name)[reader.installedVersions(dir,name).indexOf(json.version)])
         else {installed_modules.push(name);return}
     }
     // adds avibile versions to a lookup index
@@ -280,11 +279,8 @@ module.exports = async (name='.',dir='.',options) => {
                 }
             } else {
                 // adds the requested modules and version and all of the required modules into the queue
-                let moduleName = name
-                let moduleVersion = '*'
+                let [moduleName,moduleVersion] = Version.extract(name,true)
                 if (options.moduleVersion) moduleVersion = options.moduleVersion
-                else if (name.lastIndexOf('_') > 0) {moduleName = name.substring(0,name.lastIndexOf('_')); moduleVersion = name.substring(name.lastIndexOf('_')+1)}
-                else if (name.lastIndexOf('@') > 0) {moduleName = name.substring(0,name.lastIndexOf('@')); moduleVersion = name.substring(name.lastIndexOf('@')+1)}
                 index_queue = await Tree.module.dependencies(dir,moduleName,moduleVersion)
                 index_queue.push(moduleName+'_'+moduleVersion)
             }

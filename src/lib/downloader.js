@@ -3,6 +3,8 @@ const Chalk = require('chalk')
 const unzip = require('unzip')
 const config = require('../config.json')
 const valid = require('../lib/valid')
+const reader = require('./reader')
+const Version = require('./version')
 const Request = require('request')
 const request = Request.defaults({baseUrl:config.serverURL})
 
@@ -40,7 +42,8 @@ function downloadJson(dir,moduleName,moduleVersion) {
 // will get the json file for a module or download it if it is not already
 async function getJson(dir,moduleName,moduleVersion) {
     return new Promise((resolve,reject) => {
-        fs.readFile(`${dir}${config.jsonDir}/${moduleName}_${moduleVersion}.json`,async (error, file) => {
+        const versions = reader.installedVersions(dir,moduleName,true)
+        fs.readFile(`${dir}${config.jsonDir}/${moduleName}_${Version.match(versions,moduleVersion,true)}.json`,async (error, file) => {
             if (!error && file) resolve(JSON.parse(file))
             const rawDownload = await downloadJson(dir,moduleName,moduleVersion)
             resolve(rawDownload.json)
@@ -81,6 +84,8 @@ function downloadModule(dir,moduleName,moduleVersion) {
                 fs.copyFileSync(dir+config.jsonDir+'/'+dirName+'.json',path+'/../softmod.json')
             }
             resolve()
+        }).on('error',error => {
+            console.log(Chalk.red(error))
         })
     }).catch(err => console.log(Chalk.red(err)))
 }

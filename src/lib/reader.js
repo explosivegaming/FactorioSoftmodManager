@@ -79,5 +79,5 @@ module.exports = {
     getValue: readModuleValue,
     json: readModuleValid,
     path: getModuleDir,
-    versions: getModulesVersions
+    installedVersions: getModulesVersions
 }

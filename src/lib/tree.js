@@ -1,6 +1,7 @@
 // requires
 const reader = require('./reader')
 const Downloader = require('./downloader')
+const Version = require('./version')
 const Chalk = require('chalk')
 const config = require('../config.json')
 const fs = require('fs')
@@ -84,8 +85,7 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
                     // loops over files in the module dir
                     for (i=0; i < files.length; i++) {
                         let file = files[i]
-                        const version = file.substring(file.lastIndexOf('_')+1)
-                        const name = file.substring(0,file.lastIndexOf('_'))
+                        const [name,version] = Version.extract(file,true)
                         // runs this function again for each module
                         if (fs.statSync(dir+config.modulesDir+'/'+file).isDirectory()) await treeDependencies(dir,tree,name,version,false)
                     }
@@ -211,54 +211,55 @@ function resolveTree(tree,newTree={},qurey) {
     return newTree
 }
 
+// used to avoid alot of repation in the following functions
+async function treeHelper(dir,moduleName,moduleVersion,callback,extra) {
+    let tree = await callback(dir,{},moduleName,moduleVersion,extra)
+    tree = flattenTree(tree)
+    const versions = Object.keys(tree).map(value => Version.extract(value,true)).filter(value => moduleName == value[0]).map(value => value[1])
+    moduleVersion = Version.match(versions,moduleVersion,true)
+    return [moduleVersion,tree]
+}
+
 // gets the dependencies of this module and all of the dependencies of those dependencies
 async function getDependencies(dir,moduleName,moduleVersion) {
-    let tree = await treeDependencies(dir,{},moduleName,moduleVersion)
-    tree = flattenTree(tree)
-    return tree[moduleName+'_'+moduleVersion]
+    const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependencies)
+    return tree[moduleName+'_'+moduleVersionMatched]
 }
 
 // same as getDependencies but only includes installed modules
-// offline is unable to read files due to the version being on the end
 async function getInstaledDependencies(dir,moduleName,moduleVersion) {
-    let tree = await treeDependenciesOffline(dir,{},moduleName,moduleVersion)
-    tree = flattenTree(tree)
-    return tree[moduleName+'_'+moduleVersion]
+    const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependenciesOffline)
+    return tree[moduleName+'_'+moduleVersionMatched]
 }
 
 // same as getDependencies but does not include optional dependencies
 async function getRquiredDependencies(dir,moduleName,moduleVersion) {
-    let tree = await treeDependencies(dir,{},moduleName,moduleVersion)
-    tree = flattenTree(tree)
-    return tree[moduleName+'_'+moduleVersion].filter(value => value.indexOf('?') < 0)
+    const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependencies)
+    return tree[moduleName+'_'+moduleVersionMatched].filter(value => value.indexOf('?') < 0)
 }
 
 // gets the modules which are dependent of this module
 async function getDependants(dir,moduleName,moduleVersion) {
-    let tree = await treeDependants(dir,moduleName,moduleVersion)
-    tree = flattenTree(tree)
+    const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependants)
     let rtn = []
-    if (tree[moduleName+'_'+moduleVersion]) rtn = rtn.concat(tree[moduleName+'_'+moduleVersion])
-    if (tree[moduleName+'_?'+moduleVersion]) rtn = rtn.concat(tree[moduleName+'_?'+moduleVersion])
+    if (tree[moduleName+'_'+moduleVersionMatched]) rtn = rtn.concat(tree[moduleName+'_'+moduleVersionMatched])
+    if (tree[moduleName+'_?'+moduleVersionMatched]) rtn = rtn.concat(tree[moduleName+'_?'+moduleVersionMatched])
     return rtn
 }
 
 // same as getDependants but only includes installed modules
-// offline is unable to read files due to the version being on the end
 async function getInstaledDependants(dir,moduleName,moduleVersion) {
-    let tree = await treeDependants(dir,moduleName,moduleVersion,true)
-    tree = flattenTree(tree)
+    const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependants,true)
     const rtn = []
-    if (tree[moduleName+'_'+moduleVersion]) rtn.concat(tree[moduleName+'_'+moduleVersion])
+    if (tree[moduleName+'_'+moduleVersionMatched]) rtn.concat(tree[moduleName+'_'+moduleVersionMatched])
     return rtn
 }
 
 // same as getDependencies but does not include optional dependencies
 async function getRquiredDependants(dir,moduleName,moduleVersion) {
-    let tree = await treeDependants(dir,moduleName,moduleVersion)
-    tree = flattenTree(tree)
+    const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependants)
     const rtn = []
-    if (tree[moduleName+'_'+moduleVersion]) rtn.concat(tree[moduleName+'_'+moduleVersion])
+    if (tree[moduleName+'_'+moduleVersionMatched]) rtn.concat(tree[moduleName+'_'+moduleVersionMatched])
     return rtn
 }
 
