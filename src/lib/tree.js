@@ -9,7 +9,7 @@ const fs = require('fs')
 // may be a way to combine the online and offline functions
 // offline is unable to read files due to the version being on the end
 // creates a tree of depdnies so each module will be an array of its depedies, no downloading, relies on jsons inside module dirs
-function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
+function treeDependenciesOffline(dir,tree={},moduleName,moduleVersion,root=true) {
     // reads the modules dir
     return new Promise(async (resolve,reject) => {
         // module_path is not given when called by the user
@@ -19,7 +19,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                 if (err) reject(`Could not open module dir: ${err}`)
                 else {
                     // loops over files in the module dir
-                    for (i=0; i < files.length; i++) await treeDependenciesOffline(dir,tree,files[i])
+                    for (i=0; i < files.length; i++) await treeDependenciesOffline(dir,tree,files[i],moduleVersion,false)
                 }
                 // returns the whole tree
                 resolve(tree)
@@ -43,7 +43,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                             // if it is a scenario then it will read all the modules in the scenario
                             for (let sub_module in json.modules) {
                                 const treeNameSub = sub_module+'_'+json.modules[sub_module]
-                                tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,sub_module)
+                                tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,sub_module,moduleVersion,false)
                             }
                         } break;
                         case 'Collection': {
@@ -51,7 +51,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                             for (let sub_module in json.submodules) {
                                 let sub_module_name = moduleName+'.'+sub_module
                                 const treeNameSub = sub_module_name+'_'+json.submodules[sub_module].version
-                                tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,sub_module_name)
+                                tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,sub_module_name,moduleVersion,false)
                             }
                         } break;
                         case 'Submodule':
@@ -59,7 +59,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                             // every dependcy is loaded here
                             for (let dependency in json.dependencies) {
                                 const treeNameSub = dependency+'_'+json.dependencies[dependency]
-                                tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,dependency)
+                                tree[treeName][treeNameSub] = await treeDependenciesOffline(dir,tree,dependency,moduleVersion,false)
                             }
                         } break;
                     }
@@ -67,7 +67,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,root=true) {
                     else resolve(tree[treeName])
                 }
             }
-            resolve(tree)
+            resolve(false)
         }
     }).catch(err => console.log(Chalk.red(err)))
 }
@@ -135,12 +135,11 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
 
 // creates a tree of depdnies so each module will have the modules which it dependes on under its name
 // why is this so much simplier than the one above >_<
-async function treeDependants(dir,moduleName,moduleVersion,offline) {
+async function treeDependants(dir,tree={},moduleName,moduleVersion,offline) {
     // creates the tree
-    const tree={}
     let DependenciesTree = {}
-    if (offline) DependenciesTree = await treeDependenciesOffline(dir,{},moduleName,moduleVersion)
-    else DependenciesTree = await treeDependencies(dir,{},moduleName,moduleVersion)
+    if (offline) DependenciesTree = await treeDependenciesOffline(dir,{})
+    else DependenciesTree = await treeDependencies(dir,{})
     // loops over every module
     for (let mod in DependenciesTree) {
         let moduleDependencies = DependenciesTree[mod]
@@ -191,7 +190,7 @@ function flattenTree(tree,newTree={},moduleName) {
 // this resolves each member to a value based on a function, default is due set value to true if all of its dependents are true
 function resolveTree(tree,newTree={},qurey) {
     const done = []
-    if (!qurey) {qurey = (key,value) => {
+    if (!qurey) {qurey = (key,value,recur) => {
         done.push(key)
         if (newTree[key]) return newTree[key]
         if (typeof value == 'boolean') return value
@@ -200,14 +199,14 @@ function resolveTree(tree,newTree={},qurey) {
         for (let subKey in value) {
             hasValues = true
             if (!newTree[subKey] && done.indexOf(subKey) < 0) {
-                newTree[subKey] = qurey(subKey,tree[subKey])
+                newTree[subKey] = recur(subKey,tree[subKey],recur)
                 if (newTree[subKey] == false) set = false
             } else if (newTree[subKey] == false) set = false
         }
         if (hasValues) return set
         else return false
     }}
-    for (let key in tree) newTree[key] = qurey(key,tree[key])
+    for (let key in tree) newTree[key] = qurey(key,tree[key],qurey)
     return newTree
 }
 
@@ -216,7 +215,7 @@ async function treeHelper(dir,moduleName,moduleVersion,callback,extra) {
     let tree = await callback(dir,{},moduleName,moduleVersion,extra)
     tree = flattenTree(tree)
     const versions = Object.keys(tree).map(value => Version.extract(value,true)).filter(value => moduleName == value[0]).map(value => value[1])
-    moduleVersion = Version.match(versions,moduleVersion,true)
+    moduleVersion = Version.match(versions,moduleVersion,true).match(/\d\.\d\.\d/)[0]
     return [moduleVersion,tree]
 }
 
@@ -241,25 +240,33 @@ async function getRquiredDependencies(dir,moduleName,moduleVersion) {
 // gets the modules which are dependent of this module
 async function getDependants(dir,moduleName,moduleVersion) {
     const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependants)
+    const versions = Object.keys(tree).map(value => Version.extract(value,true)).filter(value => moduleName == value[0]).map(value => value[1])
     let rtn = []
-    if (tree[moduleName+'_'+moduleVersionMatched]) rtn = rtn.concat(tree[moduleName+'_'+moduleVersionMatched])
-    if (tree[moduleName+'_?'+moduleVersionMatched]) rtn = rtn.concat(tree[moduleName+'_?'+moduleVersionMatched])
+    versions.forEach(version => {
+        if (Version.match([moduleVersionMatched],version)) rtn = rtn.concat(tree[moduleName+'_'+version])
+    })
     return rtn
 }
 
 // same as getDependants but only includes installed modules
 async function getInstaledDependants(dir,moduleName,moduleVersion) {
     const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependants,true)
-    const rtn = []
-    if (tree[moduleName+'_'+moduleVersionMatched]) rtn.concat(tree[moduleName+'_'+moduleVersionMatched])
+    const versions = Object.keys(tree).map(value => Version.extract(value,true)).filter(value => moduleName == value[0]).map(value => value[1])
+    let rtn = []
+    versions.forEach(version => {
+        if (version.indexOf('?') < 0 && Version.match([moduleVersionMatched],version)) rtn = rtn.concat(tree[moduleName+'_'+version])
+    })
     return rtn
 }
 
 // same as getDependencies but does not include optional dependencies
 async function getRquiredDependants(dir,moduleName,moduleVersion) {
     const [moduleVersionMatched,tree] = await treeHelper(dir,moduleName,moduleVersion,treeDependants)
-    const rtn = []
-    if (tree[moduleName+'_'+moduleVersionMatched]) rtn.concat(tree[moduleName+'_'+moduleVersionMatched])
+    const versions = Object.keys(tree).map(value => Version.extract(value,true)).filter(value => moduleName == value[0]).map(value => value[1])
+    let rtn = []
+    versions.forEach(version => {
+        if (version.indexOf('?') < 0 && Version.match([moduleVersionMatched],version)) rtn = rtn.concat(tree[moduleName+'_'+version])
+    })
     return rtn
 }
 
@@ -267,7 +274,7 @@ module.exports = {
     dependencies: treeDependencies,
     dependenciesOffline: treeDependenciesOffline,
     dependents: treeDependants,
-    dependentsOffline: async (dir,moduleName,moduleVersion) => await treeDependants(dir,moduleName,moduleVersion,true),
+    dependentsOffline: async (dir,moduleName,moduleVersion) => await treeDependants(dir,{},moduleName,moduleVersion,true),
     flatten: flattenTree,
     resolve: resolveTree,
     module: {

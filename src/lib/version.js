@@ -85,7 +85,10 @@ function testVersion(tests,parts,offset) {
 function versionMatch(options,match,latest) {
     const version_parts = match.match(/(\*)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+)?)|(?:(\??(?=[<>^~\d]))([<>^~]?=?(?=\d))(\d+)\.(\d+)\.(\d+))/)
     if (!version_parts) {new Error('Could not parse version query');return}
-    if (version_parts[1]) return options
+    if (version_parts[1]) {
+        if (latest) return versionMax(options)
+        else return options
+    }
     let tests = []
     testVersion(tests,version_parts,3)
     testVersion(tests,version_parts,7)

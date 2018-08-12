@@ -160,9 +160,7 @@ function create_index(dir) {
                     }
                 })
             })
-            const versions = reader.installedVersions(dir,moduleName)
-            // need a better way to get the version number
-            if (moduleName == moduleName.substring(0,moduleName.lastIndexOf('_'))+'_'+versions[0]) index.splice(currentIndex,0,moduleName)
+            index.splice(currentIndex,0,moduleName)
         }
         // once all modules are added it will create the lua file
         let write_str = ''
@@ -170,8 +168,9 @@ function create_index(dir) {
         index.forEach(module_name => {
             const modulePaths = reader.path(dir,module_name)
             // this part works as the module name has a version attatched to it
-            let module_path = modulePaths[0]
-            modulePaths.forEach(path => {if (path.includes(module_name)) module_path = path})
+            const versions = modulePaths.map(value => Version.extract(value).replace(/-/gi,'.'))
+            const foundVersion = Version.match(versions,Version.extract(module_name),true)
+            const module_path = modulePaths[versions.indexOf(foundVersion)]
             // if it has GlobalLib in its name then it is put at the front of the index
             write_str=write_str+(config.indexBody.replace('${module_name}',module_name.replace('_','@')).replace('${module_path}',module_path))
         })
@@ -293,7 +292,7 @@ module.exports = async (name='.',dir='.',options) => {
             if (installed_modules.length > 0) {
                 console.log(Chalk.red('  The following modules were skiped due to them already being installed: '))
                 console.log(Chalk.grey('   '+installed_modules.join(', ')))
-                console.log(Chalk.red('  Please use _f to force a reinstall of all modules'))
+                console.log(Chalk.red('  Please use -f to force a reinstall of all modules'))
             }
             // creates a download queue and then downloads the modules
             console.log(Chalk` {underline Selecting Download Versions}`)

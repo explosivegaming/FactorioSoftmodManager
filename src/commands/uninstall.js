@@ -2,6 +2,9 @@ const fs = require('fs')
 const config = require('../config.json')
 const reader = require('../lib/reader')
 const Chalk = require('chalk')
+const Tree = require('../lib/tree')
+const Version = require('../lib/version')
+const Downloader = require('../lib/downloader')
 
 // removes a dir recusivly and also removes files
 function rmdir(dir) {
@@ -175,15 +178,48 @@ module.exports = async (name='.',dir='.',options) => {
         console.log(Chalk.red('Name is required when not clearing json dir'))
         return
     }
+    // adds only this module to the list to be removed
+    const [moduleNameMain,moduleVersionMain] = Version.extract(name,true)
+    let remove = {[moduleNameMain+'_'+moduleVersionMain]:true}
+    const json = await Downloader.getJson(dir,moduleNameMain,moduleVersionMain)
+    if (json.type == 'Collection') {
+        for (let subMod in json.submodules) {
+            const subVersion = json.submodules[subMod].version
+            remove[moduleNameMain+'.'+subMod+'_'+subVersion] = true
+        }
+    }
+    // makes sure it is safe to remove the module
+    for (let module_name in remove) {
+        const [moduleName,moduleVersion] = Version.extract(module_name,true)
+        const removeDependentsTemp = await Tree.module.dependentsInstalled(dir,moduleName,moduleVersion)
+        const removeDependents = []
+        while (removeDependentsTemp.length > 0) {
+            const [moduleName,moduleVersion] = Version.extract(removeDependentsTemp.pop(),true)
+            const subJson = await Downloader.getJson(dir,moduleName,moduleVersion)
+            if (subJson.type != 'Collection') removeDependents.push(moduleName+'_'+moduleVersion)
+        }
+        if (removeDependents.length > 0 && !options.force) {
+            console.log(Chalk.red('  Uninstall is being blocked as '+moduleName+'_'+moduleVersion+' is required by:'))
+            console.log(Chalk.grey('   '+removeDependents.join(', ')))
+            console.log(Chalk.red('  Please use -f to force the unistall of this module'))
+            return
+        }
+    }
     // creates the remove tree and resolves it
-    const remove = {}
-    await loopOverModules(dir,name,remove)
-    resolveRemoveTree(remove)
+    if (options.recursive) {
+        remove = await Tree.dependentsOffline(dir,{},moduleNameMain,moduleVersionMain)
+        const versions = Object.keys(remove).map(value => Version.extract(value,true)).filter(value => moduleNameMain == value[0]).map(value => value[1])
+        const moduleVersionFound = Version.match(versions,moduleVersionMain,true)
+        remove = Tree.resolve(remove,{[moduleNameMain+'_'+moduleVersionFound]:true})
+    }
     // loops over the resolved tree to remove the requested modules
     for (let module_name in remove) {
         if (remove[module_name]) {
             // gets the path of the module
-            const path = dir+config.modulesDir+'/'+module_name.replace('.','/')
+            const paths = reader.path(dir,module_name)
+            const versions = reader.installedVersions(dir,module_name)
+            const moduleVersionFound = Version.match(versions,Version.extract(module_name),true)
+            const path = paths[versions.indexOf(moduleVersionFound)]
             if (fs.existsSync(path)) console.log(Chalk` {underline Removing Module: ${module_name}}`)
             // removes all the files within the module
             await rmdir(path)

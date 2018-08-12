@@ -85,7 +85,7 @@ function downloadModule(dir,moduleName,moduleVersion) {
             }
             resolve()
         }).on('error',error => {
-            console.log(Chalk.red(error))
+            reject(error)
         })
     }).catch(err => console.log(Chalk.red(err)))
 }
