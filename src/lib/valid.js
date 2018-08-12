@@ -1,11 +1,11 @@
-const valid_keys=['name','module','type','description','version','modules','submodules','dependencies']
-const keywords_keys=['location','keywords'].concat(valid_keys)
+const valid_keys=['name','type','description','version','modules','submodules','dependencies']
+const keywords_keys=['location','keywords','collection'].concat(valid_keys)
 const author_keys=['author','contact','license'].concat(keywords_keys)
 const config = require('../config.json')
 
 // the most basic information that every json will have
 function valid(data,no_remove) {
-    if (data.name && data.module && data.type) {
+    if (data.name && data.type) {
         if (!data.description) data.description='<blank>'
         if (!data.version) data.description='1.0.0'
         if (data.type == 'Secenario' && !data.modules) data.modules={}

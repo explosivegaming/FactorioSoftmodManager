@@ -70,7 +70,7 @@ function addJson(dir,file,index) {
             }
             case 'Submodule' :
             case 'Module': {
-                const name = '/'+file == config.jsonFile && json.name || file.substring(0,file.lastIndexOf('@'))
+                const name = '/'+file == config.jsonFile && json.name || file.substring(0,file.lastIndexOf('_'))
                 const temp = moduleTemplate(name,json.version,json)
                 let includesModule = false
                 index.forEach(value => {if (!includesModule && value.name == temp.name && value.version == temp.version) includesModule = true})

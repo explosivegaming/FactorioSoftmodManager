@@ -3,6 +3,8 @@ const fs = require('fs')
 const valid = require('../lib/valid')
 const config = require('../config.json')
 const reader = require('../lib/reader')
+const Version = require('../lib/version')
+const Chalk = require('chalk')
 
 function addCollectionToScenario(dir,modules,collection_name,collection_version,collection_modules) {
     const submodules = fs.readdirSync(dir)
@@ -32,8 +34,8 @@ function addCollectionToScenario(dir,modules,collection_name,collection_version,
     }
 }
 
-module.exports = async (dir='.',options) => {
-    try {
+module.exports = async (dir='.') => {
+    return new Promise((resolve,reject) => {
         const data = reader.json(dir+config.jsonFile)
         switch (data.type) {
             case 'Scenario': {
@@ -73,10 +75,13 @@ module.exports = async (dir='.',options) => {
                         const name = reader.getValue(`${dir}/${dir_name}`,'name')
                         if (name) {
                             // if it is a valid submodule it is added to the json
+                            const submodule_versions = []
                             const module_data = reader.json(`${dir}/${dir_name}${config.jsonFile}`)
                             module_data.type = 'Submodule'
-                            fs.writeFile(`${dir}/${dir_name}${config.jsonFile}`,JSON.stringify(module_data,undefined,4),err => {})
-                            if (valid.submodule(module_data)) data.submodules[name] = module_data
+                            if (valid.submodule(module_data)) {data.submodules[name] = module_data;submodule_versions.push(module_data.version)}
+                            data.version = Version.max(submodule_versions) || data.version || '1.0.0'
+                            module_data.collection = data.name+'_'+data.version
+                            fs.writeFileSync(`${dir}/${dir_name}${config.jsonFile}`,JSON.stringify(module_data,undefined,4))
                         }
                     }
                 })
@@ -87,11 +92,11 @@ module.exports = async (dir='.',options) => {
         }
         // the json file is then writen into the dir
         fs.writeFile(dir+config.jsonFile,JSON.stringify(data,undefined,4),err => {
-            if (err) console.log(`Error writing file: ${err}`) 
-            else console.log(`Wrote file: ${fs.realpathSync(dir+config.jsonFile)}`)
+            if (err) reject(`Error writing file: ${err}`)
+            else resolve(`Wrote file: ${fs.realpathSync(dir+config.jsonFile)}`)
         })
-    } catch(error) {
+    }).catch(error => {
         // logs all errors but ^C
-        if (error.message != 'canceled') console.log(error)
-    }
+        if (error.message != 'canceled') console.log(Chalk.red(error))
+    })
 }

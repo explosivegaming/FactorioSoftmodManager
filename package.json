@@ -37,10 +37,13 @@
     "chalk": "^2.4.1",
     "commander": "^2.15.1",
     "express": "^4.16.3",
+    "glob": "^7.1.2",
+    "jszip": "^3.1.5",
     "promptly": "^3.0.3",
     "request": "^2.87.0",
     "sequelize": "^4.37.10",
     "sqlite3": "^4.0.0",
-    "unzip": "^0.1.11"
+    "unzip": "^0.1.11",
+    "zip-folder": "^1.0.0"
   }
 }

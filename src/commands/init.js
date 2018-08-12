@@ -6,17 +6,10 @@ const config = require('../config.json')
 const reader = require('../lib/reader')
 const Chalk = require('chalk')
 
-// converts a string to camcase
-function camelize(str) {
-    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(letter, index) {
-      return index == 0 ? letter.toLowerCase() : letter.toUpperCase();
-    }).replace(/\s+/g, '');
-}
-
 // a helper function to handle the default values and user io
 async function get_input(dir,data,data_key,options,options_key,name,default_value) {
     // default is set via cli or the current value or the default passed to the function
-    let default_input = options[options_key] || reader.getValue(dir,data_key) || default_value
+    let default_input = options[options_key] || reader.getValue(dir,data_key,true) || default_value
     if (typeof default_input === 'object') default_input=Object.values(default_input).join(',')
     // if the value was not set via cli and the yes flag was not set then it will ask for user input, else use default
     if (!options[options_key] && !options.yesAll) {
@@ -31,7 +24,6 @@ async function basic(dir,data,options) {
     const dir_name = path.lastIndexOf('/') > 0 && path.substring(path.lastIndexOf('/')+1) || path.lastIndexOf('\\') > 0 && path.substring(path.lastIndexOf('\\')+1) || undefined
     await get_input(dir,data,'name',options,'moduleName','name',dir_name)
     await get_input(dir,data,'version',options,'moduleVersion','version','1.0.0')
-    await get_input(dir,data,'module',options,'module','load name',camelize(data.name))
     if (!options.yesAll) console.log('Type can be: Module, Scenario, Collection')
     await get_input(dir,data,'type',options,'type','type','Module')
     await get_input(dir,data,'description',options,undefined,'description','<blank>')
@@ -43,9 +35,12 @@ async function detail(dir,data,options) {
     await get_input(dir,data,'keywords',options,'keyWords','keywords','<blank>')
     // spilts the keywords using ,
     data.keywords = data.keywords.split(',')
-    await get_input(dir,data,'author',options,'author','author','<blank>')
-    await get_input(dir,data,'contact',options,'contact','contact','<blank>')
-    await get_input(dir,data,'license',options,'license','license','<blank>')
+    if (data.type != 'Submodule') {
+        if (!options.yesAll) console.log('If this will be a submodule then you can ingrone this values and leave them blank')
+        await get_input(dir,data,'author',options,'author','author','<blank>')
+        await get_input(dir,data,'contact',options,'contact','contact','<blank>')
+        await get_input(dir,data,'license',options,'license','license','<blank>')
+    }
 }
 
 function addCollectionToScenario(dir,modules,collection_name,collection_version,collection_modules) {
@@ -84,7 +79,7 @@ module.exports = async (dir='.',options) => {
         switch (data.type) {
             case 'Scenario': {
                 // for scenarios the module dir will be read and auto appented to the json
-                data.modules = reader.getValue(dir,'modules') || {}
+                data.modules = reader.getValue(dir,'modules',true) || {}
                 const module_dir = dir+config.modulesDir
                 const files = fs.readdirSync(module_dir)
                 if (!files) {console.log('Skiping module loading, modules dir not found'); break}
@@ -110,7 +105,7 @@ module.exports = async (dir='.',options) => {
             case 'Collection': {
                 // if it is a collection it will get extra info and look in the current dir for modules
                 await detail(dir,data,options)
-                data.submodules = reader.getValue(dir,'submodules') || {}
+                data.submodules = reader.getValue(dir,'submodules',true) || {}
                 const files = fs.readdirSync(dir)
                 if (!files) {console.log('Skiping module loading, modules dir not found'); break}
                 // loops over files in the current dir
@@ -133,12 +128,12 @@ module.exports = async (dir='.',options) => {
             case 'Submodule': {
                 console.log(Chalk.red('In furture please create as a module and use update command on the collection.'))
                 await detail(dir,data,options)
-                data.dependencies = reader.getValue(dir,'dependencies') || {}
+                data.dependencies = reader.getValue(dir,'dependencies',true) || {}
             } break
             case 'Module': {
                 // modules just get extra detail no extra auto append
                 await detail(dir,data,options)
-                data.dependencies = reader.getValue(dir,'dependencies') || {}
+                data.dependencies = reader.getValue(dir,'dependencies',true) || {}
             } break
         }
         // the json file is then writen into the dir

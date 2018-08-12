@@ -2,10 +2,11 @@
 const valid = require('./valid')
 const Chalk = require('chalk')
 const config = require('../config.json')
+const glob = require('glob')
 const fs = require('fs')
 
 // reads the raw data from a json file can accept a dir and then look for the jsonFile in config
-function readModuleJson(file) {
+function readModuleJson(file,noPrintError) {
     try {
         let readFile = file
         if (fs.existsSync(file)) {
@@ -20,20 +21,20 @@ function readModuleJson(file) {
         return undefined
     } catch(error) {
         // catch any errors
-        console.log(Chalk.red(error))
+        if (!noPrintError) console.log(Chalk.red(error))
         return undefined
     }
 }
 
 // reads a module and gets one value used for one offs
-function readModuleValue(dir,key) {
-    const data = readModuleJson(dir)
+function readModuleValue(dir,key,noPrintError) {
+    const data = readModuleJson(dir,noPrintError)
     return data && data[key] || undefined
 }
 
 // reads a module and makes sure it is valid before it is returned
-function readModuleValid(dir) {
-    const data = readModuleJson(dir)
+function readModuleValid(dir,noPrintError) {
+    const data = readModuleJson(dir,noPrintError)
     if (!data) return undefined
     switch (data.type) {
         case undefined: return undefined
@@ -57,8 +58,26 @@ function readModuleValid(dir) {
     }
 }
 
+function getModuleDir(dir,moduleName,useJsons) {
+    let search = config.modulesDir
+    if (useJsons) search = config.jsonDir
+    let moduleNameRaw = moduleName
+    if (moduleNameRaw.lastIndexOf('_') > 0) moduleNameRaw = moduleNameRaw.substring(0,moduleNameRaw.lastIndexOf('_'))
+    if (moduleNameRaw.lastIndexOf('.') > 0) moduleNameRaw = moduleNameRaw.substring(moduleNameRaw.lastIndexOf('.')+1)
+    return glob.sync(dir+search+'/**/'+moduleNameRaw+'*')
+}
+
+function getModulesVersions(dir,moduleName,useJsons) {
+    const paths = getModuleDir(dir,moduleName,useJsons)
+    const rtn = []
+    paths.forEach(path => rtn.push(path.substring(path.lastIndexOf('_')+1).replace(/-/gi,'.')))
+    return rtn
+}
+
 module.exports = {
     raw: readModuleJson,
     getValue: readModuleValue,
-    json: readModuleValid
+    json: readModuleValid,
+    path: getModuleDir,
+    installedVersions: getModulesVersions
 }
