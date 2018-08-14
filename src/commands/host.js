@@ -141,6 +141,7 @@ function addWatch(dir,interville) {
 
 module.exports = (dir='.',options) => {
     const port = options.port || config.hostPort
+    const host = options.host || config.host
     database.authenticate()
     if (options.dev) app.use_raw()
     const index = []
@@ -148,7 +149,7 @@ module.exports = (dir='.',options) => {
     if (options.update && options.useIndex) updateDatabase(dir+config.jsonDir,index)
     if (index.length > 0) applyUpdates(index)
     if (options.watch) addWatch(dir,options.watch)
-    app.listen(port, () => {
-        console.log('Server started on port: '+port)
+    app.listen(port, host, () => {
+        console.log('Server started on: '+host+':'+port)
     })
 }

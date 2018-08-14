@@ -12,8 +12,9 @@
     "indexFooter": "}",
     "indexBody": "    ['${module_name}']='${module_path}',\n",
     "indexPriority": "GlobalLib",
-    "hostPort": 3000,
+    "host": "127.0.0.1",
+    "hostPort": 3001,
     "removeLocaleAfterInstall": false,
     "cleanModules": true,
-    "serverURL": "http://localhost:3000"
+    "serverURL": "http://explosivegaming.nl:3001"
 }
