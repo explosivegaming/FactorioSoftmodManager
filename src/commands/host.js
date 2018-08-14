@@ -149,6 +149,6 @@ module.exports = (dir='.',options) => {
     if (index.length > 0) applyUpdates(index)
     if (options.watch) addWatch(dir,options.watch)
     app.listen(port, () => {
-        console.log('Server started on: '+host+':'+port)
+        console.log('Server started on: '+port)
     })
 }
