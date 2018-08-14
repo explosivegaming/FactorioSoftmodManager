@@ -61,7 +61,6 @@ program
     .command('host [dir]')
     .description('Sets up a web api endpoint on this machine; a place holder for allowing uploading of modules')
     .option('-p, --port','port to host server on')
-    .option('-h, --host','host address to host server on')
     .option('-u, --update','loads new modules from the modules folder into the database')
     .option('-i, --use-index','loads new modules from the json dir')
     .option('-w, --watch [interville]','watchs the selected dir for new json files and adds them to the database, then removes them')

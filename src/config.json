@@ -11,8 +11,6 @@
     "indexHeader": "-- not_luadoc=true\n--- Used to index the files to be loaded\nreturn {\n",
     "indexFooter": "}",
     "indexBody": "    ['${module_name}']='${module_path}',\n",
-    "indexPriority": "GlobalLib",
-    "host": "127.0.0.1",
     "hostPort": 3001,
     "removeLocaleAfterInstall": false,
     "cleanModules": true,

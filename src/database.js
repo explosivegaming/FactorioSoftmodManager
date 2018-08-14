@@ -3,7 +3,7 @@ const config = require('./config.json')
 
 const sequelize = new Sequelize('factorioSoftmodManager',null,null,{
     dialect: 'sqlite',
-    storage:process.argv[1]+config.database,
+    storage:config.database,
     operatorsAliases: false,
 });
 
