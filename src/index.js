@@ -31,7 +31,7 @@ program
 
 // install command (used to install a scenario/module/collection/submodule)
 program
-    .command('install <name> [dir]')
+    .command('install [name] [dir]')
     .description('Installs all modules that are required to run a secario or adds a dependencie for a module')
     .option('-y, --yes-all','skips all prompts')
     .option('-d, --dry-run','will not download any thing but will move and create files')

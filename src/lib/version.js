@@ -17,6 +17,9 @@ function versionCompare(versionOne,versionTwo,special) {
             } else return 0
         }
         default: {
+            // test for undefined version
+            if (versionOne == '*') return -1
+            if (versionTwo == '*') return 1
             // greater than test
             if (version_parts_one[0] > version_parts_two[0] ||
                 version_parts_one[0] == version_parts_two[0] && version_parts_one[1] > version_parts_two[1] ||
@@ -41,15 +44,19 @@ function versionRange(version,min,max) {
 // returns the largest version in an array
 function versionMax(tbl) {
     let latest = [0,0,0]
+    let hasUndefind = false
     for (i=0; i < tbl.length; i++) {
         const version_parts = tbl[i].split('.')
+        // checks for undefined version
+        if (tbl[i] == '*') hasUndefind = true
         // greater than test, same as above but uses the same compear each time
-        if (version_parts[0] > latest[0] ||
+        else if (version_parts[0] > latest[0] ||
             version_parts[0] == latest[0] && version_parts[1] > latest[1] ||
             version_parts[0] == latest[0] && version_parts[1] == latest[1] && version_parts[2] > latest[2]) {
                 latest=version_parts
         }
     }
+    if (hasUndefind && latest[0] == 0 && latest[1] == 0 && latest[2] == 0) return '*'
     return latest.join('.')
 }
 
@@ -95,6 +102,7 @@ function versionMatch(options,match,latest) {
     testVersion(tests,version_parts,12)
     const found = options.filter(value => {
         for (let i = 0; i < tests.length; i++) {
+            if (value.includes('*')) return true
             if (!tests[i](value)) return false
         }
         return true

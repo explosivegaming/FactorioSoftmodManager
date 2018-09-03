@@ -171,8 +171,9 @@ function create_index(dir) {
             const versions = modulePaths.map(value => Version.extract(value).replace(/-/gi,'.'))
             const foundVersion = Version.match(versions,Version.extract(module_name),true)
             const module_path = modulePaths[versions.indexOf(foundVersion)]
-            // if it has GlobalLib in its name then it is put at the front of the index
-            write_str=write_str+(config.indexBody.replace('${module_name}',module_name.replace('_','@')).replace('${module_path}',module_path))
+            const moduleNameRaw = module_name.replace('_','@')
+            console.log(Chalk`  Added ${moduleNameRaw} {gray ${module_path}}`)
+            write_str=write_str+(config.indexBody.replace('${module_name}',moduleNameRaw).replace('${module_path}',module_path))
         })
         // once it has formed the string it will add the header and footer to the file and create the file
         fs.writeFile(index_path,config.indexHeader+write_str+config.indexFooter,err => {
@@ -267,6 +268,8 @@ module.exports = async (name='.',dir='.',options) => {
             const failed_modules = {}
             const installed_modules = []
             const opt_modules = {}
+            // if there is no module name but there is a dir path then the values are switched
+            if (name.includes('/') || name.includes('\\') && dir == '.') {dir = name;name='.'}
             // if no module is given then it will look in the current dir to find a module json
             if (name == '.') {
                 if (fs.existsSync(name+config.jsonFile) && fs.statSync(name+config.jsonFile).isFile()) {
