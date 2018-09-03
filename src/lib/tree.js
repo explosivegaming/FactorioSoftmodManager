@@ -166,12 +166,16 @@ function flattenTree(tree,newTree={},moduleName) {
     } else {
         // if it is already flaterned then it is not done again
         const [moduleNameRaw, moduleVersion] = Version.extract(moduleName,true)
-        const possibleVersions = Object.keys(newTree).filter(value => value.includes(moduleNameRaw)).map(value => Version.extract(value))
+        const possibleVersions = Object.keys(tree).filter(value => value.includes(moduleNameRaw)).map(value => Version.extract(value))
         const foundVersion = Version.match(possibleVersions,moduleVersion,true)
+        const foundModuleName = moduleNameRaw+'_'+foundVersion
         if (newTree[moduleName]) return newTree[moduleName]
-        if (newTree[moduleNameRaw+'_'+foundVersion]) {
-            newTree[moduleName] = newTree[moduleNameRaw+'_'+foundVersion]
-            return newTree[moduleNameRaw+'_'+foundVersion]
+        else if (foundModuleName != moduleName && newTree[foundModuleName]) {
+            newTree[moduleName] = newTree[foundModuleName]
+            return newTree[moduleName]
+        } else if (foundModuleName != moduleName && tree[foundModuleName]) {
+            newTree[moduleName] = flattenTree(tree,newTree,foundModuleName)
+            return newTree[moduleName]
         }
         // creats the new array for the module
         newTree[moduleName] = []

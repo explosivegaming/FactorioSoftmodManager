@@ -161,7 +161,6 @@ function create_index(dir) {
                         const possibleVersions = index.filter(value => value.includes(subModuleName)).map(value => Version.extract(value))
                         const foundVersion = Version.match(possibleVersions,subModVersion,true)
                         const subMod = subModuleName+'_'+foundVersion
-                        //console.log(subMod+' '+index.indexOf(subMod))
                         if (index.indexOf(subMod) && !foundVersion.includes('?')) {
                             if (currentIndex < index.indexOf(subMod)) currentIndex = index.indexOf(subMod)+1
                         }
