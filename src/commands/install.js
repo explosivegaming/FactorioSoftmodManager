@@ -147,8 +147,10 @@ function create_index(dir) {
     const index_path = module_path+config.modulesIndex
     // reads the modules dir
     return new Promise(async (resolve,reject) => {
+        console.log('  Generating tree...')
         const installedModulesTree = await Tree.dependenciesOffline(dir)
         const installedModules = Tree.flatten(installedModulesTree)
+        console.log('  Generating module order...')
         for (let moduleName in installedModules) {
             let currentIndex = 0
             installedModules[moduleName].forEach(subModule => {
@@ -160,11 +162,13 @@ function create_index(dir) {
                     }
                 })
             })
+            console.log(Chalk.gray(`   Inserted ${moduleName}`))
             index.splice(currentIndex,0,moduleName)
         }
         // once all modules are added it will create the lua file
         let write_str = ''
         // first loops over each index and creates a string of the index object in a lua friendly way
+        console.log('  Finding module paths...')
         index.forEach(module_name => {
             const modulePaths = reader.path(dir,module_name)
             // this part works as the module name has a version attatched to it
@@ -172,7 +176,7 @@ function create_index(dir) {
             const foundVersion = Version.match(versions,Version.extract(module_name),true)
             const module_path = modulePaths[versions.indexOf(foundVersion)]
             const moduleNameRaw = module_name.replace('_','@')
-            console.log(Chalk`  Added ${moduleNameRaw} {gray ${module_path}}`)
+            console.log(Chalk`   Added ${moduleNameRaw} {gray ${module_path}}`)
             write_str=write_str+(config.indexBody.replace('${module_name}',moduleNameRaw).replace('${module_path}',module_path))
         })
         // once it has formed the string it will add the header and footer to the file and create the file
