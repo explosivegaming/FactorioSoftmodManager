@@ -163,7 +163,7 @@ function create_index(dir) {
                         const subMod = subModuleName+'_'+foundVersion
                         //console.log(subMod+' '+index.indexOf(subMod))
                         if (index.indexOf(subMod) && !foundVersion.includes('?')) {
-                            if (currentIndex < index.indexOf(subMod)) currentIndex = index.indexOf(subMod)
+                            if (currentIndex < index.indexOf(subMod)) currentIndex = index.indexOf(subMod)+1
                         }
                     })
                 })
