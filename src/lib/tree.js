@@ -165,23 +165,28 @@ function flattenTree(tree,newTree={},moduleName) {
         }
     } else {
         // if it is already flaterned then it is not done again
+        const [moduleNameRaw, moduleVersion] = Version.extract(moduleName,true)
+        const possibleVersions = Object.keys(newTree).filter(value => value.includes(moduleNameRaw)).map(value => Version.extract(value))
+        const foundVersion = Version.match(possibleVersions,moduleVersion,true)
         if (newTree[moduleName]) return newTree[moduleName]
-        else {
-            // creats the new array for the module
-            newTree[moduleName] = []
-            for (let dependency in tree[moduleName]) {
-                // inserts its dependencies (this could also be depentants)
-                if (newTree[moduleName].indexOf(dependency) < 0) newTree[moduleName].push(dependency)
-                // inserts the dependencies of its dependencies
-                let sub = flattenTree(tree,newTree,dependency)
-                for (i=0; i < sub.length;i++) {
-                    // inserts if not already in the list
-                    if (newTree[moduleName].indexOf(sub[i]) < 0 && moduleName != sub[i]) newTree[moduleName].push(sub[i])
-                }
-            }
-            // returns only this module part for use of getting the sub_dependies
-            return newTree[moduleName]
+        if (newTree[moduleNameRaw+'_'+foundVersion]) {
+            newTree[moduleName] = newTree[moduleNameRaw+'_'+foundVersion]
+            return newTree[moduleNameRaw+'_'+foundVersion]
         }
+        // creats the new array for the module
+        newTree[moduleName] = []
+        for (let dependency in tree[moduleName]) {
+            // inserts its dependencies (this could also be depentants)
+            if (newTree[moduleName].indexOf(dependency) < 0) newTree[moduleName].push(dependency)
+            // inserts the dependencies of its dependencies
+            let sub = flattenTree(tree,newTree,dependency)
+            for (i=0; i < sub.length;i++) {
+                // inserts if not already in the list
+                if (!newTree[moduleName].includes(sub[i]) && moduleName != sub[i]) newTree[moduleName].push(sub[i])
+            }
+        }
+        // returns only this module part for use of getting the sub_dependies
+        return newTree[moduleName]
     }
     // returns the full tree
     return newTree

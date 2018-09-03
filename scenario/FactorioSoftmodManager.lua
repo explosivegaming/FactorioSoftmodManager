@@ -268,6 +268,7 @@ Manager.require = setmetatable({
         else
             -- else it assums the path was a module name and checks index for the module
             if moduleIndex[path] then return rawget(Manager.loadModules,path) end
+            if moduleIndex[path:gsub('?','')] then return rawget(Manager.loadModules,path) end
             -- if its not listed then it tries to remove a version tag and tries again
             local path_no_version = path:find('@') and path:sub(1,path:find('@')-1) or path
             if moduleIndex[path_no_version] then return rawget(Manager.loadModules,path_no_version) end

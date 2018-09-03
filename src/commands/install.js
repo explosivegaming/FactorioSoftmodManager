@@ -152,18 +152,24 @@ function create_index(dir) {
         const installedModules = Tree.flatten(installedModulesTree)
         console.log('  Generating module order...')
         for (let moduleName in installedModules) {
-            let currentIndex = 0
-            installedModules[moduleName].forEach(subModule => {
-                const subversions = reader.installedVersions(dir,subModule)
-                subModule = subModule.substring(0,subModule.lastIndexOf('_'))
-                subversions.forEach(subModVersion => {
-                    if (index.indexOf(subModule+'_'+subModVersion)) {
-                        if (currentIndex < index.indexOf(subModule+'_'+subModVersion)) currentIndex = index.indexOf(subModule+'_'+subModVersion)+1
-                    }
+            if (!moduleName.includes('?')) {
+                let currentIndex = 0
+                installedModules[moduleName].forEach(subModule => {
+                    const subversions = reader.installedVersions(dir,subModule)
+                    subModuleName = subModule.substring(0,subModule.lastIndexOf('_'))
+                    subversions.forEach(subModVersion => {
+                        const possibleVersions = index.filter(value => value.includes(subModuleName)).map(value => Version.extract(value))
+                        const foundVersion = Version.match(possibleVersions,subModVersion,true)
+                        const subMod = subModuleName+'_'+foundVersion
+                        //console.log(subMod+' '+index.indexOf(subMod))
+                        if (index.indexOf(subMod) && !foundVersion.includes('?')) {
+                            if (currentIndex < index.indexOf(subMod)) currentIndex = index.indexOf(subMod)
+                        }
+                    })
                 })
-            })
-            console.log(Chalk.gray(`   Inserted ${moduleName}`))
-            index.splice(currentIndex,0,moduleName)
+                console.log(Chalk.gray(`   Inserted{${currentIndex}} ${moduleName}`))
+                index.splice(currentIndex,0,moduleName)
+            }
         }
         // once all modules are added it will create the lua file
         let write_str = ''

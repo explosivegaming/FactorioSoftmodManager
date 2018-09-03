@@ -61,7 +61,7 @@ function readModuleValid(dir,noPrintError) {
 function getModuleDir(dir,moduleName,useJsons) {
     let search = config.modulesDir
     if (useJsons) search = config.jsonDir
-    let moduleNameRaw = moduleName
+    let moduleNameRaw = moduleName.replace(/\./gi,'/')
     if (moduleNameRaw.lastIndexOf('_') > 0) moduleNameRaw = moduleNameRaw.substring(0,moduleNameRaw.lastIndexOf('_'))
     if (moduleNameRaw.lastIndexOf('.') > 0) moduleNameRaw = moduleNameRaw.substring(moduleNameRaw.lastIndexOf('.')+1)
     return glob.sync(dir+search+'/**/'+moduleNameRaw+'*')
@@ -69,9 +69,10 @@ function getModuleDir(dir,moduleName,useJsons) {
 
 function getModulesVersions(dir,moduleName,useJsons) {
     const paths = getModuleDir(dir,moduleName,useJsons)
-    const rtn = []
-    paths.forEach(path => rtn.push(path.substring(path.lastIndexOf('_')+1).replace(/-/gi,'.')))
-    return rtn
+    return paths.map(path => {
+        if (path.includes('_')) return path.substring(path.lastIndexOf('_')+1).replace(/-/gi,'.')
+        else return '*'
+    })
 }
 
 module.exports = {
