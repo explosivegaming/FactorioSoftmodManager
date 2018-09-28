@@ -223,7 +223,8 @@ Manager.sandbox = setmetatable({
     verbose=Manager.verbose,
     loaded_modules={}, -- this is over riden later
     module_verbose=false,
-    module_exports=false
+    module_exports=false,
+    _no_error_in_sandbox=true
 },{
     __metatable=false,
     __index=ReadOnlyManager,
@@ -257,8 +258,8 @@ Manager.require = setmetatable({
     __require=require
 },{
     __metatable=false,
-    __index=function(tbl,key) return tbl(key) end,
-    __call=function(tbl,path,env) 
+    __index=function(tbl,key) return tbl(key,nil,true) end,
+    __call=function(tbl,path,env,mute) 
         local raw_require = rawget(tbl,'__require')
         local env = env or {}
         -- runs in a sand box becuase sandbox everything
@@ -266,6 +267,7 @@ Manager.require = setmetatable({
         -- if there was no error then it assumed the path existed and returns the data
         if success then return unpack(data)
         else
+            if type(path) ~= 'string' then error('Path supplied must be a string; got: '..type(path),2) return end
             -- else it assums the path was a module name and checks index for the module
             if moduleIndex[path] then return rawget(Manager.loadModules,path) end
             if moduleIndex[path:gsub('?','')] then return rawget(Manager.loadModules,path) end
@@ -283,7 +285,7 @@ Manager.require = setmetatable({
             end
             -- if there is any keys in the collection the collection is returned else the errors with the require error
             for _ in pairs(collection) do return collection end
-            error(data,2)
+            if mute then return false else error(data,2) end
         end
     end
 })
@@ -442,14 +444,14 @@ Manager.error = setmetatable({
         -- if the error constant is given crash game
         if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop','errorCaught') rawget(tbl,'__error_call')('Force Stop',2) end
         -- other wise treat the call as if its been passed an err string
-        Manager.verbose('An error has occurred: '..err,'errorCaught')
+        if _G._no_error_in_sandbox and ReadOnlyManager.currentState == 'moduleEnv' then else Manager.verbose('An error has occurred: '..err,'errorCaught') end
         if #tbl > 0 then
             -- there is at least one error handler loaded; loops over the error handlers
             for handler_name,callback in pairs(tbl) do
                 local success, err = pcall(callback,err,...)
                 if not success then Manager.verbose('Error handler: "'..handler_name..'" failed to run ('..err..')','errorCaught') end
                 -- if the error constant is returned from the handler then crash the game
-                if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop by: '..handler_name,'errorCaught') rawget(tbl,'__error_call')('Force Stop by: '..handler_name) end
+                if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop by: '..handler_name,'errorCaught') rawset(tbl,'__crash',true) rawget(tbl,'__error_call')('Force Stop by: '..handler_name) end
             end
         elseif game then
             -- there are no handlers loaded so it will print to the game if loaded
@@ -458,8 +460,10 @@ Manager.error = setmetatable({
         else
             -- all else fails it will crash the game with the error code
             Manager.verbose('No error handlers loaded; Game not loaded; Forced crash: '..err,'errorCaught')
+            rawset(tbl,'__crash',true)
             rawget(tbl,'__error_call')(err,2)
         end
+        rawget(tbl,'__error_call')(err,2)
     end,
     __index=function(tbl,key)
         -- this allows the __error_handler to be called from many different names
@@ -538,8 +542,9 @@ Manager.event = setmetatable({
             Manager.event[event_name] = new_callback return
         end
         -- other wise raise the event and call every callback; no use of script.raise_event due to override
-        if type(tbl[event_name]) == 'table' then
-            for module_name,callback in pairs(tbl[event_name]) do
+        local event_functions = tbl.__events[event_name]
+        if type(event_functions) == 'table' then
+            for module_name,callback in pairs(event_functions) do
                 -- loops over the call backs and which module it is from
                 if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'..module_name..'"') end
                 local sandbox, success, err = Manager.sandbox(callback,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},new_callback,...)
@@ -553,7 +558,7 @@ Manager.event = setmetatable({
                         else chache[error_message] = nil end
                         if chache[error_message] and chache[error_message][2] > 100 then
                             Manager.verbose('There was an error happening every tick for 100 ticks, the event handler has been removed!','errorCaught')
-                            tbl[event_name][module_name] = nil
+                            event_functions[module_name] = nil
                         end
                     end
                 end
