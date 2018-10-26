@@ -6,6 +6,9 @@
 local moduleIndex = require("/modules/index")
 local Manager = {}
 
+-- this is a constant that is used to represent the server
+SERVER = setmetatable({index=0,name='<server>',online_time=0,afk_time=0,print=print,admin=true},{__index=function(tbl,key) if type(game.players[1][key]) == 'function' then return function() end else return nil end end})
+
 --- Setup for metatable of the Manager to force read only nature
 -- @usage Manager() -- runs Manager.loadModdules()
 -- @usage Manager[name] -- returns module by that name
@@ -177,16 +180,15 @@ Manager.global=setmetatable({__defaults={},__global={
         local module_name = type(default) == 'string' and default or tbl2 and tbl2.name or module_name
         local module_path = type(default) == 'string' and moduleIndex[default] or tbl2 and tbl2.path or module_path
         if not module_path or not module_name then return _G.global end
-        if type(default) == 'table' then Manager.verbose('Default global has been set for: global'..module_path:gsub('/','.')) rawset(rawget(tbl,'__defaults'),tostring(module_name),default) end
+        if type(default) == 'table' then Manager.verbose('Default global has been set for: global'..string.sub(module_path:gsub('/','.')),2) rawset(rawget(tbl,'__defaults'),tostring(module_name),default) end
         local path = 'global'
-        local new_dir = false
         for dir in module_path:gmatch('%a+') do
             path = path..'.'..dir
-            if not rawget(Global,dir) then new_dir=true Manager.verbose('Added Global Dir: '..path) rawset(Global,dir,{}) end
+            if not rawget(Global,dir) then Manager.verbose('Added Global Dir: '..path) rawset(Global,dir,{}) end
             Global = rawget(Global,dir)
         end
-        if (new_dir or default == true) and rawget(rawget(tbl,'__defaults'),tostring(module_name)) then 
-            Manager.verbose('Set Global Dir: '..path..' to its default')
+        if default == true and rawget(rawget(tbl,'__defaults'),tostring(module_name)) then 
+            Manager.verbose('Reset Global Dir to default: '..path)
             -- cant set it to be equle otherwise it will lose its global propeity 
             local function deepcopy(tbl) if type(tbl) ~= 'table' then return tbl end local rtn = {} for key,value in pairs(tbl) do rtn[key] = deepcopy(value) end return rtn end
             for key,value in pairs(Global) do rawset(Global,key,nil) end
@@ -194,7 +196,16 @@ Manager.global=setmetatable({__defaults={},__global={
         end
         return setmetatable(Global,{
             __call=function(tbl,default) return Manager.global(default,tbl) end,
-            __index=function(tbl,key) return rawget(Manager.global(),key) or moduleIndex[key] and Manager.global(key) end,
+            __index=function(tbl,key) return rawget(Manager.global(nil,tbl),key) or moduleIndex[key] and Manager.global(key) end,
+            __newindex=function(tbl,key,value) rawset(Manager.global(nil,tbl),key,value) end,
+            __pairs=function(tbl)
+                local tbl = Manager.global(nil,tbl)
+                local function next_pair(tbl,k)
+                    k, v = next(tbl, k)
+                    if type(v) ~= nil then return k,v end
+                end
+                return next_pair, tbl, nil
+            end,
             path=module_path,name=module_name
         })
     end,
@@ -224,7 +235,7 @@ Manager.sandbox = setmetatable({
     loaded_modules={}, -- this is over riden later
     module_verbose=false,
     module_exports=false,
-    _no_error_in_sandbox=true
+    _no_error_verbose=true
 },{
     __metatable=false,
     __index=ReadOnlyManager,
@@ -232,18 +243,27 @@ Manager.sandbox = setmetatable({
         if type(callback) == 'function' then 
             -- creates a new sandbox env
             local sandbox = tbl()
-            local env = type(env) == 'table' and env or type(env) ~= 'nil' and {env} or {}
-            -- new indexs are saved into sandbox and if _G does not have the index then look in sandbox
-            local old_mt = getmetatable(_G) or {}
-            setmetatable(env,{__index=sandbox})
-            setmetatable(_G,{__index=env,__newindex=sandbox})
+            local env = type(env) == 'table' and env or {}
+            local _G_mt = getmetatable(_G)
+            -- creates a new ENV where it will look in the provided env then the sand box and then _G, new indexes saved to sandbox
+            local tmp_env = setmetatable({},{__index=function(tbl,key) return env[key] or sandbox[key] or rawget(_G,key) end,newindex=sandbox})
+            tmp_env._ENV = tmp_env
+            tmp_env._G_mt = _G_mt
+            -- sets the upvalues for the function
+            local i = 1
+            while true do
+                local name, value = debug.getupvalue(callback,i)
+                if not name then break else if not value and tmp_env[name] then debug.setupvalue(callback,i,tmp_env[name]) end end
+                i=i+1
+            end
             -- runs the callback
+            setmetatable(_G,{__index=tmp_env,newindex=sandbox})
             local rtn = {pcall(callback,...)}
             local success = table.remove(rtn,1)
+            setmetatable(_G,_G_mt)
             -- this is to allow modules to be access with out the need of using Mangaer[name] also keeps global clean
-            setmetatable(_G,old_mt)
-            if success then return sandbox, success, rtn
-            else return sandbox, success, rtn[1] end
+            if success then return success, rtn, sandbox
+            else return success, rtn[1], sandbox end
         else return setmetatable({},{__index=tbl}) end
     end
 })
@@ -263,7 +283,7 @@ Manager.require = setmetatable({
         local raw_require = rawget(tbl,'__require')
         local env = env or {}
         -- runs in a sand box becuase sandbox everything
-        local sandbox, success, data = Manager.sandbox(raw_require,env,path)
+        local success, data = Manager.sandbox(raw_require,env,path)
         -- if there was no error then it assumed the path existed and returns the data
         if success then return unpack(data)
         else
@@ -308,7 +328,7 @@ Manager.loadModules = setmetatable({},
             for module_name,path in pairs(moduleIndex) do
                 Manager.verbose('Loading module: "'..module_name..'"; path: '..path)
                 -- runs the module in a sandbox env
-                local sandbox, success, module = Manager.sandbox(Manager.require.__require,{module_name=setupModuleName(module_name),module_path=path},path..'/control')
+                local success, module, sandbox = Manager.sandbox(Manager.require.__require,{module_name=setupModuleName(module_name),module_path=path},path..'/control')
                 -- extracts the module into a global index table for later use
                 if success then
                     -- verbose to notifie of any globals that were attempted to be created
@@ -320,17 +340,9 @@ Manager.loadModules = setmetatable({},
                     -- if you prefere module_exports can be used rather than returning the module
                     if type(tbl[module_name]) == 'nil' then
                         -- if it is a new module then creat the new index
-                        if string.find(module_name,'GlobalLib') then
-                            Manager.verbose('Extracting GlobalLib: '..module_name)
-                            -- if it is named GlobalLib then it will be auto extracted into _G
-                            if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                            then for key,value in pairs(sandbox.module_exports) do _G[key] = value end
-                            else for key,value in pairs(table.remove(module,1)) do _G[key] = value end end
-                        else
-                            if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                            then tbl[module_name] = sandbox.module_exports
-                            else tbl[module_name] = table.remove(module,1) end
-                        end
+                        if sandbox.module_exports and type(sandbox.module_exports) == 'table'
+                        then tbl[module_name] = sandbox.module_exports
+                        else tbl[module_name] = table.remove(module,1) end
                     elseif type(tbl[module_name]) == 'table' then
                         -- if this module adds onto an existing one then append the keys
                         if sandbox.module_exports and type(sandbox.module_exports) == 'table'
@@ -351,6 +363,7 @@ Manager.loadModules = setmetatable({},
                     end
                     -- if there is a module by this name in _G ex table then it will be indexed to the new module
                     if rawget(_G,module_name) and type(tbl[module_name]) == 'table' then setmetatable(rawget(_G,module_name),{__index=tbl[module_name]}) end
+                    if type(tbl[module_name]) == 'table' then tbl[module_name]._module_path = path tbl[module_name]._module_name = module_name end
                 else
                     Manager.verbose('Failed load: "'..module_name..'"; path: '..path..' ('..module..')','errorCaught')
                     for event_name,callbacks in pairs(Manager.event) do Manager.verbose('Removed Event Handler: "'..module_name..'/'..Manager.event.names[event_name],'eventRegistered') callbacks[module_name] = nil end
@@ -364,7 +377,7 @@ Manager.loadModules = setmetatable({},
                 if type(data) == 'table' and data.init and data.on_init == nil then data.on_init = data.init data.init = nil end
                 if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
                     Manager.verbose('Initiating module: "'..module_name..'"')
-                    local sandbox, success, err = Manager.sandbox(data.on_init,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},data)
+                    local success, err = Manager.sandbox(data.on_init,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},data)
                     if success then
                         Manager.verbose('Successfully Initiated: "'..module_name..'"')
                     else
@@ -382,7 +395,7 @@ Manager.loadModules = setmetatable({},
                 if type(data) == 'table' and data.post and data.on_post == nil then data.on_post = data.post data.post = nil end
                 if type(data) == 'table' and data.on_post and type(data.on_post) == 'function' then
                     Manager.verbose('Post for module: "'..module_name..'"')
-                    local sandbox, success, err = Manager.sandbox(data.on_post,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},data)
+                    local success, err = Manager.sandbox(data.on_post,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},data)
                     if success then
                         Manager.verbose('Successful post: "'..module_name..'"')
                     else
@@ -435,6 +448,14 @@ Manager.error = setmetatable({
         if type(handler_name) == 'string' and type(callback) == 'function' then Manager.error[handler_name]=callback
         elseif type(handler_name) == 'function' then table.insert(Manager.error,handler_name)
         else Manager.error('Handler is not a function',2) end
+    end,
+    in_pcall=function(level)
+        local level = level and level+1 or 2
+        while true do
+            if not debug.getinfo(level) then return false end
+            if debug.getinfo(level).name == 'pcall' then return level end
+            level=level+1
+        end
     end
 },{
     __metatalbe=false,
@@ -442,9 +463,9 @@ Manager.error = setmetatable({
         -- if no params then return the error constant
         if err == nil then return rawget(tbl,'__error_const') end
         -- if the error constant is given crash game
-        if err == rawget(tbl,'__error_const') then Manager.verbose('Force Stop','errorCaught') rawget(tbl,'__error_call')('Force Stop',2) end
+        if err == rawget(tbl,'__error_const') then Manager.verbose('Force Crash','errorCaught') rawset(tbl,'__crash',true) rawget(tbl,'__error_call')('Force Crash',2) end
         -- other wise treat the call as if its been passed an err string
-        if _G._no_error_in_sandbox and ReadOnlyManager.currentState == 'moduleEnv' then else Manager.verbose('An error has occurred: '..err,'errorCaught') end
+        if not _no_error_verbose or Manager.currentState ~= 'moduleEnv' then Manager.verbose('An error has occurred: '..err,'errorCaught') end
         if #tbl > 0 then
             -- there is at least one error handler loaded; loops over the error handlers
             for handler_name,callback in pairs(tbl) do
@@ -463,10 +484,13 @@ Manager.error = setmetatable({
             rawset(tbl,'__crash',true)
             rawget(tbl,'__error_call')(err,2)
         end
-        rawget(tbl,'__error_call')(err,2)
+        local args = {...}
+        local trace = args[1] and type(args[1]) == 'number' and args[1]+1 or 2
+        if tbl.in_pcall(2) then rawget(tbl,'__error_call')(err,trace) end
     end,
     __index=function(tbl,key)
         -- this allows the __error_handler to be called from many different names
+        if type(key) ~= 'string' then return end
         if key:lower() == 'addhandler' or key:lower() == 'sethandler' or key:lower() == 'handler' or key:lower() == 'register' then return rawget(tbl,'__error_handler')
         else rawget(tbl,'__error_call')('Invalid index for error handler; please use build in methods.') end
     end,
@@ -490,7 +514,7 @@ Manager.error = setmetatable({
         local function next_pair(tbl,k)
             local v
             k, v = next(tbl, k)
-            if k == '__error_call' or k == '__error_const' or k == '__error_handler' or k == '__crash' then return next_pair(tbl,k) end
+            if k == '__error_call' or k == '__error_const' or k == '__error_handler' or k == '__crash' or k == 'in_pcall' then return next_pair(tbl,k) end
             if type(v) == 'function' then return k,v end
         end
         return next_pair, tbl, nil
@@ -547,7 +571,7 @@ Manager.event = setmetatable({
             for module_name,callback in pairs(event_functions) do
                 -- loops over the call backs and which module it is from
                 if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'..module_name..'"') end
-                local sandbox, success, err = Manager.sandbox(callback,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},new_callback,...)
+                local success, err = Manager.sandbox(callback,{module_name=setupModuleName(module_name),module_path=moduleIndex[tostring(module_name)]},new_callback,...)
                 if not success then 
                     local chache = tbl.error_chache
                     local error_message = 'Event Failed: "'..module_name..'/'..tbl.names[event_name]..'" ('..err..')'
@@ -649,13 +673,25 @@ rawset(Manager.event,'names',setmetatable({},{
 }))
 
 script.on_init(function(...)
+    Manager.verbose('____________________| SubStart: script.on_init |____________________')
     setmetatable(global,Manager.global.__global)
+    local names = {}
+    for name,default in pairs(Manager.global.__defaults) do table.insert(names,name) end
+    Manager.verbose('Global Tables: '..table.concat(names,', '))
+    for name,default in pairs(Manager.global.__defaults) do global(name)(true) end
     Manager.event(-1,...) 
+    Manager.verbose('____________________| SubStop: script.on_init |____________________')
 end)
 
 script.on_load(function(...)
+    Manager.verbose('____________________| SubStart: script.on_load |____________________')
     setmetatable(global,Manager.global.__global)
+    local names = {}
+    for name,default in pairs(Manager.global.__defaults) do table.insert(names,name) end
+    Manager.verbose('Global Tables: '..table.concat(names,', '))
+    for name,default in pairs(Manager.global.__defaults) do Manager.verbose('Global '..name..' = '..serpent.line(Manager.global(name))) end
     Manager.event(-2,...)
+    Manager.verbose('____________________| SubStop: script.on_load |____________________')
 end)
 --over rides for the base values; can be called though Event
 Event=setmetatable({},{__call=Manager.event,__index=function(tbl,key) return Manager.event[key] or script[key] or error('Invalid Index To Table Event') end})
