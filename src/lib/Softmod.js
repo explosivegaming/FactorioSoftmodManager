@@ -11,14 +11,21 @@ const semver = require('semver')
 
 const rootDir = process.env.dir
 
+const jsonChache = {}
 class Softmod {
     constructor(name,versionQurey) {
         this.name = name
         this.versionQurey = versionQurey
+        this.downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
     }
 
-    static fromJson(json) {
-        const softmod = this.bind({_json:json},[json.name,json.version])
+    static get jsonChache() {
+        return jsonChache
+    }
+
+    static fromJson(json,nameOverride) {
+        const softmod = new Softmod(nameOverride ? nameOverride : json.name,json.version)
+        softmod._json = json
         softmod.updateFromJson()
         return softmod
     }
@@ -43,47 +50,108 @@ class Softmod {
         else return softmodVersion
     }
 
-    install(skip={}) {
-        if (this.installed) return
+    install(skip=[]) {
+        if (this.installed && !process.env.useForce) return
+        if (skip.includes(this.name)) return
         consoleLog('start','Installing softmod: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             if (!this.location) await this.updateFromJson()
             if (!this.location) reject('No location for module download')
             else {
+                console.log(1)
                 await this.downloadPackage()
-                await Promise.all(this.dependencies.map(softmod => softmod.install(skip)))
+                console.log(2)
+                this.copyLocale()
+                console.log(3)
+                await Promise.all(this.dependencies.map(softmod => softmod.install(skip)).concat(this.submodules.map(softmod => softmod.install(skip))))
                 consoleLog('success','Installed softmod: '+this.versionName)
                 resolve()
             }
         }).catch(err => consoleLog('error',err))
     }
     
+    async copyLocale() {
+        function recur(dir) {
+            return new Promise((resolve,reject) => {
+                fs.readdir(dir,(err,files) => {
+                    if (err) reject(err)
+                    else {
+                        files.forEach(file => {
+                            if (fs.statSync(`${dir}/${file}`).isDirectory()) recur.apply(this,[`${dir}/${file}`])
+                            else {
+                                if (file.includes('.cfg')) fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                            }
+                        })
+                        resolve()
+                    }
+                })
+            }).catch(err => {
+                if (!err.message.includes('ENOENT')) consoleLog('error',err)
+            })
+        }
+        await recur.apply(this,[this.downloadPath+config.localeDir])
+        await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
+            if (fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
+                return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
+            }
+        })).catch(err => consoleLog('error',err))
+    }
+
     downloadPackage() {
         consoleLog('info','Downloading package for: '+this.versionName)
-        return new Promise(async (resolve,reject) => {
-            if (this.installed) reject(this.versionName+' already installed')
-            else {
-                if (!this.location) await this.updateFromJson()
-                if (!this.location) reject('No location for module download')
-                else {
-                    const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
-                    await fs.emptyDir(downloadPath)
-                    request(this.location)
-                    .on('error',err => reject(err))
-                    .pipe(unzip.Extract({path:downloadPath}))
-                    .on('error',err => reject(err))
+        function download() {
+            return new Promise(async (resolve,reject) => {
+                try {
+                    console.log(8)
+                    await fs.emptyDir(this.downloadPath)
+                    console.log(9)
+                    const requestSent = request(this.location)
+                        .on('error',err => reject('Request Error: '+err))
+                    const extract = unzip.Extract({path:this.downloadPath})
+                        .on('error',err => reject('Unzip Error: '+err))
+                    requestSent.pipe(extract)
+                    .on('error',err => reject('Pipe Error: '+err))
                     .on('finish',async () => {
-                        if (this._json) fs.writeJSONSync(downloadPath+config.jsonFile,this._json)
+                        console.log(4)
+                        if (this._json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this._json)
                         if (this.parent) {
                             const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
-                            await Softmod.saveJson(parentName,parentVersion,downloadPath+'/..'+config.jsonFile)
+                            await Softmod.saveJson(parentName,parentVersion,this.downloadPath+'/..'+config.jsonFile)
                         }
                         consoleLog('info','Downloaded package for: '+this.versionName)
                         resolve()
                     })
+                    console.log(10)
+                } catch (err) {
+                    reject('Download Error: '+err)
+                }
+            })
+        }
+        return new Promise(async (resolve,reject) => {
+            if (this.installed && !process.env.useForce) reject(this.versionName+' already installed')
+            else {
+                if (!this.location) await this.updateFromJson()
+                if (!this.location) reject('No location for module download')
+                else {
+                    let ctn = 0
+                    let success = false
+                    console.log(5)
+                    while (!success && ctn < 10) {
+                        console.log(6)
+                        ctn++
+                        success = true
+                        await download.apply(this)
+                        .catch(err => {
+                            console.log(11)
+                            if (ctn == 10) reject(err)
+                            success = false
+                        })
+                        console.log(7)
+                    }
+                    resolve(ctn)
                 }
             }
-        }).catch(err => consoleLog('error',err))
+        }).catch(err => consoleLog('fail','Download Failed: '+err))
     }
 
     downloadJson() {
@@ -95,6 +163,8 @@ class Softmod {
                 else {
                     consoleLog('info',`Downloaded json for: ${this.name}@${body.latest}`)
                     const downloadPath = `${rootDir+config.jsonDir}/${this.name}_${body.latest}.json`
+                    Softmod.jsonChache[`${this.name}@${body.latest}`] = downloadPath
+                    Softmod.jsonChache[`${this.name}@${this.versionQurey}`] = downloadPath
                     fs.writeJSONSync(downloadPath,body.json)
                     resolve(downloadPath)
                 }
@@ -104,7 +174,8 @@ class Softmod {
 
     async getJson() {
         if (!this._json) {
-            const jsonFile = await this.downloadJson()
+            let jsonFile = Softmod.jsonChache[this.versionName]
+            if (!fs.existsSync(jsonFile)) jsonFile = await this.downloadJson()
             this._json = await fs.readJSON(jsonFile)
         }
         return this._json
@@ -155,7 +226,7 @@ class Softmod {
         const rtn = []
         if (this.provides) {
             for (let softmodName in this.provides) {
-                rtn.push(new Softmod(softmodName,this.provides[softmodName]))
+                rtn.push(Softmod.fromJson(this.provides[softmodName],`${this.name}.${softmodName}`))
             }
         }
         return rtn

@@ -94,7 +94,7 @@ program
     .action(async (dir='.',cmd) => {
         process.env.dir = dir
         const Softmod = require('./lib/Softmod')
-        const softmod = new Softmod('ExpGamingCore.Gui','^4.0.0')
+        const softmod = new Softmod('ExpGamingCore','^4.0.0')
         await softmod.install()
     })
 

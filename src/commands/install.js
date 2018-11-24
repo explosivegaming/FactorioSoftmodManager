@@ -1,5 +1,5 @@
 // require
-const fs = require('fs')
+const fs = require('fs-extra')
 const Chalk = require('chalk')
 const promptly = require('promptly')
 const config = require('../config.json')
@@ -8,6 +8,11 @@ const Downloader = require('../lib/downloader')
 const reader = require('../lib/reader')
 const Tree = require('../lib/tree')
 
+const Softmod = require('../lib/Softmod')
+const consoleLog = require('../lib/consoleLog')
+
+const rootDir = process.env.dir
+/*
 function rmdir(dir) {
     if (fs.statSync(dir).isDirectory()) {
         fs.readdir(dir,(err,files) => {
@@ -323,5 +328,55 @@ module.exports = async (name='.',options) => {
     } catch(error) {
         // logs all errors but ^C
         if (error.message != 'canceled') console.log(Chalk.red(error))
+    }
+}*/
+
+function initDir() {
+    return new Promise((resovle,reject) => {
+        const installLocation = process.argv[1]+config.srcScenario
+        fs.readdir(installLocation,(err,files) => {
+            if (err) reject(err)
+            else {
+                files.forEach(file => {
+                    if (fs.statSync(`${installLocation}/${file}`).isFile()) {
+                        fs.copy(`${installLocation}/${file}`,`${rootDir}/${file}`,{overwrite:process.env.useForce})
+                    }
+                })
+                resovle()
+            }
+        })
+    }).catch(err => consoleLog('error',err))
+}
+
+function moveLocale() {
+    return new Promise((resolve,reject) => {
+        fs.readdir(rootDir+config.modulesDir,async (err,files) => {
+            if (err) reject(err)
+            else {
+                await Promise.all(files.map(file => {
+                    if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
+                        return new Softmod(file,'*').copyLocale()
+                    }
+                }))
+                resolve()
+            }
+        })
+    }).catch(err => consoleLog('error'.err))
+}
+
+module.exports = async (name='.',cmd) => {
+    process.env.useForce = cmd.force || false
+    try {
+        if (cmd.dryRun) {
+            // nothing will be downloaded
+            consoleLog('status','Init of scenario files.')
+            await initDir()
+            // consoleLog('status','Generating index file.')
+            // await generateIndex()
+            consoleLog('status','Post install locale copying (dry-run only)')
+            moveLocale()
+        }
+    } catch(err) {
+        if (err.message != 'canceled') consoleLog('error',err)
     }
 }
