@@ -43,26 +43,23 @@ class Softmod {
         else return softmodVersion
     }
 
-    install(skip={},callback) {
+    install(skip={}) {
         if (this.installed) return
-        consoleLog('status','Installing softmod: '+this.versionName)
+        consoleLog('start','Installing softmod: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             if (!this.location) await this.updateFromJson()
             if (!this.location) reject('No location for module download')
             else {
-                let ctn = this.dependencies.length
                 await this.downloadPackage()
-                this.dependencies.forEach(softmod => softmod.install(skip,() => ctn--))
-                //await ctn == 0
-                consoleLog('status','Installed softmod: '+this.versionName)
-                if (callback) callback()
+                await Promise.all(this.dependencies.map(softmod => softmod.install(skip)))
+                consoleLog('success','Installed softmod: '+this.versionName)
                 resolve()
             }
         }).catch(err => consoleLog('error',err))
     }
     
     downloadPackage() {
-        consoleLog('start','Downloading package for: '+this.versionName)
+        consoleLog('info','Downloading package for: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             if (this.installed) reject(this.versionName+' already installed')
             else {
@@ -81,7 +78,7 @@ class Softmod {
                             const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
                             await Softmod.saveJson(parentName,parentVersion,downloadPath+'/..'+config.jsonFile)
                         }
-                        consoleLog('success','Downloaded package for: '+this.versionName)
+                        consoleLog('info','Downloaded package for: '+this.versionName)
                         resolve()
                     })
                 }

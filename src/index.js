@@ -95,7 +95,7 @@ program
         process.env.dir = dir
         const Softmod = require('./lib/Softmod')
         const softmod = new Softmod('ExpGamingCore.Gui','^4.0.0')
-        softmod.install()
+        await softmod.install()
     })
 
 // program info
