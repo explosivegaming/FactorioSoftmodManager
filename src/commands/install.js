@@ -260,7 +260,8 @@ async function create_download_queue(dir,queue,index,opt_modules,yes_all) {
     }
 }
 
-module.exports = async (name='.',dir='.',options) => {
+module.exports = async (name='.',options) => {
+    const dir = process.env.dir
     try {
         if (options.dryRun) {
             // will not download anything

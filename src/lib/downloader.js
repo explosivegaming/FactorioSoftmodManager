@@ -4,7 +4,7 @@ const unzip = require('unzip')
 const config = require('../config.json')
 const valid = require('../lib/valid')
 const reader = require('./reader')
-const Version = require('./version')
+const semver = require('semver')
 const Request = require('request')
 const request = Request.defaults({baseUrl:config.serverURL})
 
@@ -43,7 +43,7 @@ function downloadJson(dir,moduleName,moduleVersion) {
 async function getJson(dir,moduleName,moduleVersion) {
     return new Promise((resolve,reject) => {
         const versions = reader.installedVersions(dir,moduleName,true)
-        fs.readFile(`${dir}${config.jsonDir}/${moduleName}_${Version.match(versions,moduleVersion,true)}.json`,async (error, file) => {
+        fs.readFile(`${dir}${config.jsonDir}/${moduleName}_${semver.maxSatisfying(versions,moduleVersion)}.json`,async (error, file) => {
             if (!error && file) resolve(JSON.parse(file))
             const rawDownload = await downloadJson(dir,moduleName,moduleVersion)
             resolve(rawDownload.json)

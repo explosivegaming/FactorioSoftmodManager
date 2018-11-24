@@ -71,7 +71,8 @@ function addCollectionToScenario(dir,modules,collection_name,collection_version,
     }
 }
 
-module.exports = async (dir='.',options) => {
+module.exports = async (options) => {
+    const dir = process.env.dir
     try {
         const data = {}
         // basic is ran for all json file types

@@ -148,7 +148,8 @@ function removeFileFromDir(dir,file) {
     }).catch(err => console.log(Chalk.red(err)))
 }
 
-module.exports = async (name='.',dir='.',options) => {
+module.exports = async (name='.',options) => {
+    const dir = process.env.dir
     // if all flag is given it will remove all dirs and files that are made by fsm and restore the default control.lua unless it is empty
     if (options.removeAll) {
         if (dir == '.') dir = name

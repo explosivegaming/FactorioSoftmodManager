@@ -139,7 +139,8 @@ function addWatch(dir,interville) {
     }
 }
 
-module.exports = (dir='.',options) => {
+module.exports = (options) => {
+    const dir = process.env.dir
     const port = options.port || config.hostPort
     database.authenticate()
     if (options.dev) app.use_raw()

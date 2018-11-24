@@ -64,7 +64,8 @@ function collection_emit(module_data,sub_module) {
     }
 }
 
-module.exports = (dir='.',options) => {
+module.exports = (options) => {
+    const dir = process.env.dir
     // reads the selected json file
     const data = reader.json(dir+config.jsonFile)
     if (!data) {console.log(Chalk.red('Could not read json file')); return}

@@ -45,7 +45,8 @@ async function addModule(exportsDir,moduleDir,module_name,baseURL) {
     }
 }
 
-module.exports = (dir='.',options) => {
+module.exports = (options) => {
+    const dir = process.env.dir
     if (fs.existsSync(dir+config.modulesDir)) {
         if (!fs.existsSync(dir+'/exports')) fs.mkdirSync(dir+'/exports')
         fs.readdir(dir+config.modulesDir,(error,files) => {

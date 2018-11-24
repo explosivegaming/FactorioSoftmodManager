@@ -6,7 +6,10 @@ program
     .command('info [dir]')
     .description('View info on a module, collection or secenario')
     .option('-m, --module [module]','view info on a submodule of a collection',(val,modules) => {modules.push(val); return modules},[])
-    .action(require('./commands/info'))
+    .action((dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/info')(cmd)
+    })
 
 // init command (creats the json and auto links submodules)
 program
@@ -21,13 +24,19 @@ program
     .option('-l, --license <license>','defines the license type or location of the modules license')
     .option('-c, --contact <contact>','defines the contact method and/or location for this contact')
     .option('-k, --key-words <keyword>,[keyword]','defines a list of key words for the module',val => val.split(','))
-    .action(require('./commands/init'))
+    .action((dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/init')(cmd)
+    })
 
 program
     .command('build [dir]')
     .description('Builds the module or collection and will give the exports which can then be added to the host')
     .option('-u, --url <url>','the base url which will be used as the host for the urls, such as a git version (...releases/download/v4.0-core/)')
-    .action(require('./commands/build'))
+    .action((dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/build')(cmd)
+    })
 
 // install command (used to install a scenario/module/collection/submodule)
 program
@@ -37,7 +46,10 @@ program
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-f, --force','forces files to be overriden during install')
     .option('-v, --module-version <version>','defines which version will be retrived')
-    .action(require('./commands/install'))
+    .action((name,dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/install')(name,cmd)
+    })
 
 program
     .command('uninstall [name] [dir]')
@@ -48,13 +60,19 @@ program
     .option('-j, --remove-json','will also remove the downloaded json file if it is present')
     .option('-l, --keep-locale','does not remove the locale file for the modules')
     .option('-a, --remove-all','remove all fsm files from this scenario')
-    .action(require('./commands/uninstall'))
+    .action((name,dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/uninstall')(name,cmd)
+    })
 
 // update command (same as init but only updates modules/submodules)
 program
     .command('update [dir]')
     .description('Updates modules, submodules and collections to all have the same information')
-    .action(require('./commands/update'))
+    .action((dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/update')(cmd)
+    })
 
 // host command (starts a host server, in furture this will connect to a master to allow more than a single host)
 program
@@ -65,7 +83,20 @@ program
     .option('-i, --use-index','loads new modules from the json dir')
     .option('-w, --watch [interville]','watchs the selected dir for new json files and adds them to the database, then removes them')
     .option('-d, --dev','allows use of /raw route for dev purposes')
-    .action(require('./commands/host'))
+    .action((dir='.',cmd) => {
+        process.env.dir = dir
+        require('./commands/host')(cmd)
+    })
+
+program
+    .command('test [dir]')
+    .description('a test command')
+    .action(async (dir='.',cmd) => {
+        process.env.dir = dir
+        const Softmod = require('./lib/Softmod')
+        const softmod = new Softmod('ExpGamingCore.Gui','^4.0.0')
+        softmod.install()
+    })
 
 // program info
 program
