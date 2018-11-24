@@ -102,7 +102,7 @@ class Softmod {
         }
         await recur.apply(this,[this.downloadPath+config.localeDir])
         await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
-            if (fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
+            if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
                 return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
             }
         })).catch(err => consoleLog('error',err))
@@ -112,50 +112,28 @@ class Softmod {
         consoleLog('info','Downloading package for: '+this.versionName)
         const download = () => {
             return new Promise(async (resolve,reject) => {
+                const zipPath = `${this.downloadPath}/${this.name}.zip`
                 try {
                     await fs.emptyDir(this.downloadPath)
-                    const zipPath = `${this.downloadPath}/${this.name}.zip`
                     request(this.location)
                     .on('error',err => reject('Request Error: '+err))
                     .pipe(fs.createWriteStream(zipPath))
                     .on('finish',() => {
                         fs.createReadStream(zipPath)
                         .pipe(unzipper.Extract({ path: this.downloadPath}))
-                        // copyed to a file just in case
                         .on('error',err => reject('Pipe Error: '+err))
                         .on('finish',async () => {
-                            console.log('Extract Done')
                             if (this._json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this._json)
                             if (this.parent) {
                                 const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
                                 await Softmod.saveJson(parentName,parentVersion,this.downloadPath+'/..'+config.jsonFile)
                             }
-                            fs.remove(zipPath)
                             consoleLog('info','Downloaded package for: '+this.versionName)
                             resolve()
                         })
-                        .on('close', () => console.log('Close'))// here not called either
                     })
-                    /*
-                    //this code works for old zipper
-                    const requestSent = request(this.location)
-                        .on('error',err => reject('Request Error: '+err))
-                    const extract = unzipper.Extract({path:this.downloadPath})
-                        .on('error',err => reject('Unzip Error: '+err))
-                    requestSent.pipe(extract)
-                    .on('error',err => reject('Pipe Error: '+err))
-                    .on('close',async () => {
-                        if (this._json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this._json)
-                        if (this.parent) {
-                            const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
-                            await Softmod.saveJson(parentName,parentVersion,this.downloadPath+'/..'+config.jsonFile)
-                        }
-                        consoleLog('info','Downloaded package for: '+this.versionName)
-                        resolve()
-                    })
-                    */
                 } catch (err) {
-                    reject('Download Error: '+err)
+                    reject('Download Error: '+err) // bugs be bugs stopped working again....
                 }
             })
         }
@@ -176,6 +154,7 @@ class Softmod {
                         })
                         .then(() => success = true)
                     }
+                    fs.remove(`${this.downloadPath}/${this.name}.zip`)
                     resolve(ctn)
                 }
             }
