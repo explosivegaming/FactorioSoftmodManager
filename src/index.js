@@ -1,5 +1,6 @@
 #! /usr/bin/env node
 const program = require('commander')
+const fs = require('fs-extra')
 
 // info command (displays info on a module/collection/scenario/submodule)
 program
@@ -93,8 +94,9 @@ program
     .description('a test command')
     .action(async (dir='.',cmd) => {
         process.env.dir = dir
+        await fs.remove(process.env.dir+'/modules')
         const Softmod = require('./lib/Softmod')
-        const softmod = new Softmod('ExpGamingCore','^4.0.0')
+        const softmod = new Softmod('ExpGamingCore','*')
         await softmod.install()
     })
 

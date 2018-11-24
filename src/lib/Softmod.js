@@ -3,7 +3,7 @@ const config = require('../config.json')
 const request = require('request')
 const requestDatabase = request.defaults({baseUrl:config.serverURL})
 
-const unzip = require('unzip')
+const unzipper = require('unzip')
 const fs = require('fs-extra')
 const consoleLog = require('./consoleLog')
 const valid = require('./valid')
@@ -12,6 +12,7 @@ const semver = require('semver')
 const rootDir = process.env.dir
 
 const jsonChache = {}
+const installChache = []
 class Softmod {
     constructor(name,versionQurey) {
         this.name = name
@@ -23,6 +24,11 @@ class Softmod {
         return jsonChache
     }
 
+    static get installChache() {
+        return installChache
+    }
+
+    // creates a Softmod from a json object, oppional override for name
     static fromJson(json,nameOverride) {
         const softmod = new Softmod(nameOverride ? nameOverride : json.name,json.version)
         softmod._json = json
@@ -30,15 +36,18 @@ class Softmod {
         return softmod
     }
 
+    // will save a copy of a softmod json into any dir
     static async saveJson(name,versionQurey,path) {
         const softmod = new this(name,versionQurey)
         const json = await softmod.getJson()
         fs.writeJSONSync(path,json)
     }
 
+    // takes a softmod name and returns the version number, or the name (with version removed) and version number
     static extractVersionFromName(name,returnName) {
         let softmodName = name
         let softmodVersion = '*'
+        // allows either @ or _ to be a seperator
         if (name.lastIndexOf('_') > 0) {
             softmodName = name.substring(0,name.lastIndexOf('_'))
             softmodVersion = name.substring(name.lastIndexOf('_')+1)
@@ -50,19 +59,21 @@ class Softmod {
         else return softmodVersion
     }
 
+    // installs the softmod
     install(skip=[]) {
+        // if it is already installed then it is not reinstalled unless force is used
         if (this.installed && !process.env.useForce) return
-        if (skip.includes(this.name)) return
+        // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
+        if (skip.includes(this.name) || Softmod.installChache.includes(this.name)) return
+        installChache.push(this.name)
+        // starts install process
         consoleLog('start','Installing softmod: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             if (!this.location) await this.updateFromJson()
             if (!this.location) reject('No location for module download')
             else {
-                console.log(1)
                 await this.downloadPackage()
-                console.log(2)
                 this.copyLocale()
-                console.log(3)
                 await Promise.all(this.dependencies.map(softmod => softmod.install(skip)).concat(this.submodules.map(softmod => softmod.install(skip))))
                 consoleLog('success','Installed softmod: '+this.versionName)
                 resolve()
@@ -99,20 +110,41 @@ class Softmod {
 
     downloadPackage() {
         consoleLog('info','Downloading package for: '+this.versionName)
-        function download() {
+        const download = () => {
             return new Promise(async (resolve,reject) => {
                 try {
-                    console.log(8)
                     await fs.emptyDir(this.downloadPath)
-                    console.log(9)
+                    const zipPath = `${this.downloadPath}/${this.name}.zip`
+                    request(this.location)
+                    .on('error',err => reject('Request Error: '+err))
+                    .pipe(fs.createWriteStream(zipPath))
+                    .on('finish',() => {
+                        fs.createReadStream(zipPath)
+                        .pipe(unzipper.Extract({ path: this.downloadPath}))
+                        // copyed to a file just in case
+                        .on('error',err => reject('Pipe Error: '+err))
+                        .on('finish',async () => {
+                            console.log('Extract Done')
+                            if (this._json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this._json)
+                            if (this.parent) {
+                                const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
+                                await Softmod.saveJson(parentName,parentVersion,this.downloadPath+'/..'+config.jsonFile)
+                            }
+                            fs.remove(zipPath)
+                            consoleLog('info','Downloaded package for: '+this.versionName)
+                            resolve()
+                        })
+                        .on('close', () => console.log('Close'))// here not called either
+                    })
+                    /*
+                    //this code works for old zipper
                     const requestSent = request(this.location)
                         .on('error',err => reject('Request Error: '+err))
-                    const extract = unzip.Extract({path:this.downloadPath})
+                    const extract = unzipper.Extract({path:this.downloadPath})
                         .on('error',err => reject('Unzip Error: '+err))
                     requestSent.pipe(extract)
                     .on('error',err => reject('Pipe Error: '+err))
-                    .on('finish',async () => {
-                        console.log(4)
+                    .on('close',async () => {
                         if (this._json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this._json)
                         if (this.parent) {
                             const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
@@ -121,7 +153,7 @@ class Softmod {
                         consoleLog('info','Downloaded package for: '+this.versionName)
                         resolve()
                     })
-                    console.log(10)
+                    */
                 } catch (err) {
                     reject('Download Error: '+err)
                 }
@@ -135,18 +167,14 @@ class Softmod {
                 else {
                     let ctn = 0
                     let success = false
-                    console.log(5)
                     while (!success && ctn < 10) {
-                        console.log(6)
                         ctn++
-                        success = true
-                        await download.apply(this)
+                        await download.apply(this) //here
                         .catch(err => {
-                            console.log(11)
                             if (ctn == 10) reject(err)
                             success = false
                         })
-                        console.log(7)
+                        .then(() => success = true)
                     }
                     resolve(ctn)
                 }
@@ -188,7 +216,7 @@ class Softmod {
         this.description=json.description
         this.location=json.location
         this.parent=json.collection
-        this.requires=json.dependencies
+        this.requires=json.dependencies || json.modules
         this.provides=json.submodules
     }
 
@@ -198,14 +226,15 @@ class Softmod {
 
     get installed() {
         const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
-        if (!fs.existsSync(downloadPath+config.jsonFile)) return false
-        const json = fs.readJSONSync(downloadPath+config.jsonFile)
+        if (!fs.existsSync(downloadPath)) return false
+        /*const json = fs.readJSONSync(downloadPath+config.jsonFile)
         if (!json && json.version) return false
         if (this.version) {
             return semver.eq(json.version,this.version)
         } else {
             return semver.satisfies(json.version,this.versionQurey.replace('?',''))
-        }
+        }*/
+        return true
     }
 
     get versionName() {
