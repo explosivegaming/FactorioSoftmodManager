@@ -355,7 +355,7 @@ async function skipPromt(submod,skip,noSkip) {
         if (!skip.includes(submod.name) && !noSkip.includes(submod.name)) {
             // if it is not in any list then its depednices are also loaded, if accepted by user
             consoleLog('input',`"${submod.name}" is marked as optional would you like to install it?`)
-            const userInput = await promptly.confirm('Would you like to install this module: (yes)',{default:'yes'})
+            const userInput = process.env.skipUserInput || await promptly.confirm('Would you like to install this module: (yes)',{default:'yes'})
             if (!userInput) skip.push(submod.name)
             else {
                 noSkip.push(submod.name)
@@ -397,11 +397,12 @@ function moveLocale() {
                 resolve()
             }
         })
-    }).catch(err => consoleLog('error'.err))
+    }).catch(err => consoleLog('error',err))
 }
 
 module.exports = async (name='.',cmd) => {
     process.env.useForce = cmd.force || false
+    process.env.skipUserInput = cmd.yesAll || false
     try {
         if (cmd.dryRun) {
             // nothing will be downloaded
@@ -424,7 +425,7 @@ module.exports = async (name='.',cmd) => {
                 }
             } else {
                 const [softmodName,softmodVersionQuery] = Softmod.extractVersionFromName(name,true)
-                softmod = new Softmod(softmodName,softmodVersionQuery)
+                softmod = new Softmod(softmodName,cmd.modulesVersion ? cmd.modulesVersion : softmodVersionQuery)
             }
             // generates a skip queue for optional modules
             consoleLog('status','Generating skip queue.')
@@ -442,7 +443,7 @@ module.exports = async (name='.',cmd) => {
                 }
             })
             if (output.length > 0) console.log(output.join(', '))
-            const userInput = await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
+            const userInput = process.env.skipUserInput || await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
             if (!userInput) throw new Error('canceled')
             // starts the install of the first module
             consoleLog('status','Installing modules...')
