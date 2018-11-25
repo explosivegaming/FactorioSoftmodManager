@@ -14,7 +14,7 @@ const rootDir = process.env.dir
 const jsonChache = {}
 const installChache = []
 class Softmod {
-    constructor(name,versionQurey) {
+    constructor(name,versionQurey='*') {
         this.name = name
         this.versionQurey = versionQurey
         this.downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
@@ -154,7 +154,7 @@ class Softmod {
                         })
                         .then(() => success = true)
                     }
-                    fs.remove(`${this.downloadPath}/${this.name}.zip`)
+                    if (!process.env.keepZips) fs.remove(`${this.downloadPath}/${this.name}.zip`)
                     resolve(ctn)
                 }
             }
@@ -206,10 +206,10 @@ class Softmod {
 
     get installed() {
         const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
-        if (!fs.existsSync(downloadPath)) return false
-        /*const json = fs.readJSONSync(downloadPath+config.jsonFile)
+        if (!fs.existsSync(downloadPath+config.jsonFile)) return false
+        const json = fs.readJSONSync(downloadPath+config.jsonFile)
         if (!json && json.version) return false
-        if (this.version) {
+        /*if (this.version) {
             return semver.eq(json.version,this.version)
         } else {
             return semver.satisfies(json.version,this.versionQurey.replace('?',''))

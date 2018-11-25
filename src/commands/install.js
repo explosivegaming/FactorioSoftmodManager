@@ -349,13 +349,14 @@ function initDir() {
     }).catch(err => consoleLog('error',err))
 }
 
-async function skipPromt(submod,skip,noSkip) {
+async function skipPromt(submod,skip,noSkip,forceRecur) {
     if (submod.versionQurey.includes('?')) {
         // if this submodule is optional it will include ? in the version
         if (!skip.includes(submod.name) && !noSkip.includes(submod.name)) {
             // if it is not in any list then its depednices are also loaded, if accepted by user
             consoleLog('input',`"${submod.name}" is marked as optional would you like to install it?`)
-            const userInput = process.env.skipUserInput || await promptly.confirm('Would you like to install this module: (yes)',{default:'yes'})
+            let userInput = process.env.skipUserInputValue
+            if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to install this module: (yes)',{default:'yes'})
             if (!userInput) skip.push(submod.name)
             else {
                 noSkip.push(submod.name)
@@ -367,7 +368,7 @@ async function skipPromt(submod,skip,noSkip) {
         consoleLog('warning',`"${submod.name}" was marked to be skiped but is now required; modules will be installed.`)
         skip.splice(skip.indexOf(submod.name),1)
         noSkip.push(submod.name)
-    } else if (!noSkip.includes(submod.name)) {
+    } else if (forceRecur || !noSkip.includes(submod.name)) {
         // if it has not already been loaded then it will have its depedinces loaded
         noSkip.push(submod.name)
         await getSkips(submod,skip,noSkip)
@@ -376,11 +377,69 @@ async function skipPromt(submod,skip,noSkip) {
 
 async function getSkips(softmod,skip,noSkip) {
     await softmod.updateFromJson()
+    const subs = softmod.submodules
+    subs.forEach(submod => noSkip.push(submod.name))
+    for (let i = 0;i < subs.length;i++) await skipPromt(subs[i],skip,noSkip,true)
     const deps = softmod.dependencies
     for (let i = 0;i < deps.length;i++) await skipPromt(deps[i],skip,noSkip)
-    const subs = softmod.submodules
-    for (let i = 0;i < subs.length;i++) await skipPromt(subs[i],skip,noSkip)
     consoleLog('info','Checked dependencies for: '+softmod.name)
+}
+
+async function addSoftmodToIndex(softmod,index) {
+    if (Object.keys(index).includes(softmod.name)) return
+    await softmod.updateFromJson()
+    if (softmod.installed) {
+        consoleLog('info',`Added ${softmod.name} to the module index.`)
+        index[softmod.name] = softmod
+        await Promise.all(softmod.submodules.map(submod => addSoftmodToIndex(submod,index)))
+    }
+}
+
+function generateIndex() {
+    const index = {}
+    return new Promise((resolve,reject) => {
+        fs.readdir(rootDir+config.modulesDir,async (err,files) => {
+            await Promise.all(files.map(file => {
+                if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
+                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`)
+                    if (softmodJson) {
+                        const softmod = Softmod.fromJson(softmodJson)
+                        return addSoftmodToIndex(softmod,index)
+                    }
+                }
+            }))
+            // sortIndex takes the softmodName:softmod index and converts adds a _order key
+            sortIndex(index)
+            resolve(index)
+        })
+    }).catch(err => consoleLog('error',err))
+}
+
+function sortIndex(index) {
+    const order = []
+    for (softmodName in index) {
+        if (!order.includes(softmodName)) {
+            let currentIndex = 0
+            index[softmodName].dependencies.forEach(submod => {
+                if (order.includes(submod.name) && !submod.versionQurey.includes('?') && index[submod.name]) {
+                    const submodIndex = order.indexOf(submod.name)
+                    if (submodIndex > currentIndex) currentIndex = submodIndex+1
+                }
+            })
+            order.splice(currentIndex,0,softmodName)
+        }
+    }
+    index._order = order
+}
+
+function saveIndex(index) {
+    let output = ''
+    index._order.forEach(softmodName => {
+        const softmod = index[softmodName]
+        output+=config.indexBody.replace('${module_name}',softmod.name).replace('${module_path}',softmod.downloadPath)
+    })
+    fs.writeFileSync(rootDir+config.modulesDir+config.modulesIndex,config.indexHeader+output+config.indexFooter)
+    consoleLog('info','Saved index.lua')
 }
 
 function moveLocale() {
@@ -401,15 +460,18 @@ function moveLocale() {
 }
 
 module.exports = async (name='.',cmd) => {
-    process.env.useForce = cmd.force || false
-    process.env.skipUserInput = cmd.yesAll || false
+    process.env.useForce = cmd.force || ''
+    process.env.keepZips = cmd.keepZips || ''
+    process.env.skipUserInput = cmd.yesAll || cmd.noAll || ''
+    process.env.skipUserInputValue = cmd.yesAll || ''
     try {
         if (cmd.dryRun) {
             // nothing will be downloaded
             consoleLog('status','Init of scenario files.')
             await initDir()
-            // consoleLog('status','Generating index file.')
-            // await generateIndex()
+            consoleLog('status','Generating index file.')
+            const index = await generateIndex()
+            saveIndex(index)
             consoleLog('status','Post install locale copying (dry-run only)')
             moveLocale()
         } else {
@@ -420,13 +482,14 @@ module.exports = async (name='.',cmd) => {
             if (name == '.') {
                 if (fs.existsSync(rootDir+config.jsonFile)) {
                     const json = fs.readJSONSync(rootDir+config.jsonFile)
-                    if (json) softmod = new Softmod.fromJson(json)
+                    if (json) softmod = Softmod.fromJson(json)
                     else new Error('No softmod name supplied and no json found.')
                 }
             } else {
                 const [softmodName,softmodVersionQuery] = Softmod.extractVersionFromName(name,true)
                 softmod = new Softmod(softmodName,cmd.modulesVersion ? cmd.modulesVersion : softmodVersionQuery)
             }
+            if (!process.env.useForce && softmod.installed) throw new Error('Softmod already installed')
             // generates a skip queue for optional modules
             consoleLog('status','Generating skip queue.')
             const skip = []
@@ -437,19 +500,21 @@ module.exports = async (name='.',cmd) => {
             // loops over modules displaying 5 per line
             noSkip.forEach(value => {
                 output.push(value)
-                if (output.length == 8) {
+                if (output.length == 5) {
                     console.log(output.join(', '))
                     output=[]
                 }
             })
             if (output.length > 0) console.log(output.join(', '))
-            const userInput = process.env.skipUserInput || await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
+            let userInput = true
+            if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
             if (!userInput) throw new Error('canceled')
             // starts the install of the first module
-            consoleLog('status','Installing modules...')
+            consoleLog('status','Installing modules.')
             await softmod.install(skip)
-            // consoleLog('status','Generating index file.')
-            // await generateIndex()
+            consoleLog('status','Generating index file.')
+            const index = await generateIndex()
+            saveIndex(index)
         }
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
