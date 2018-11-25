@@ -49,6 +49,7 @@ program
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-f, --force','forces files to be overriden during install')
     .option('-z, --keep-zips','does not remove zip files after download')
+    .option('-j, --keep-jsons','does not remove json dir after download')
     .option('-v, --module-version <version>','defines which version will be retrived')
     .action((name='.',dir='.',cmd) => {
         // if the name is a path then it is used instead of dir

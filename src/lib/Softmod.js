@@ -82,15 +82,19 @@ class Softmod {
     }
     
     async copyLocale() {
-        function recur(dir) {
+        function recur(dir,dirName) {
             return new Promise((resolve,reject) => {
                 fs.readdir(dir,(err,files) => {
                     if (err) reject(err)
                     else {
                         files.forEach(file => {
-                            if (fs.statSync(`${dir}/${file}`).isDirectory()) recur.apply(this,[`${dir}/${file}`])
+                            if (fs.statSync(`${dir}/${file}`).isDirectory()) recur.apply(this,[`${dir}/${file}`,file])
                             else {
-                                if (file.includes('.cfg')) fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                if (file.includes('.cfg')) {
+                                    let lang = dirName
+                                    if (dirName == config.localeDir) lang = file.replace('.cfg','')
+                                    fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                }
                             }
                         })
                         resolve()
@@ -100,7 +104,7 @@ class Softmod {
                 if (!err.message.includes('ENOENT')) consoleLog('error',err)
             })
         }
-        await recur.apply(this,[this.downloadPath+config.localeDir])
+        await recur.apply(this,[this.downloadPath+config.localeDir,config.localeDir])
         await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
             if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
                 return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
