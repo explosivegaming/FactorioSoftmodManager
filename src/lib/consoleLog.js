@@ -5,19 +5,22 @@ function logType(type) {
     const output = '['+type.charAt(0).toUpperCase()+type.toLowerCase().slice(1)+']'
     switch (type.toLowerCase()) {
         case 'info':
-            return Chalk.cyan(output);
+            return Chalk.cyan(output)
         case 'start':
         case 'success':
-            return Chalk.green(output);
+            return Chalk.green(output)
         case 'fail':
         case 'end':
         case 'stop':
         case 'error':
-            return Chalk.red(output);
+            return Chalk.red(output)
         case 'status':
-            return Chalk.magenta(output);
+            return Chalk.magenta(output)
+        case 'input':
         case 'warning':
-            return Chalk.yellow(output);
+            return Chalk.yellow(output)
+        case 'verbose':
+            return Chalk.gray(output)
         default:
             return output;
     }

@@ -340,12 +340,47 @@ function initDir() {
                 files.forEach(file => {
                     if (fs.statSync(`${installLocation}/${file}`).isFile()) {
                         fs.copy(`${installLocation}/${file}`,`${rootDir}/${file}`,{overwrite:process.env.useForce})
+                        consoleLog('info','Copyed '+file)
                     }
                 })
                 resovle()
             }
         })
     }).catch(err => consoleLog('error',err))
+}
+
+async function skipPromt(submod,skip,noSkip) {
+    if (submod.versionQurey.includes('?')) {
+        // if this submodule is optional it will include ? in the version
+        if (!skip.includes(submod.name) && !noSkip.includes(submod.name)) {
+            // if it is not in any list then its depednices are also loaded, if accepted by user
+            consoleLog('input',`"${submod.name}" is marked as optional would you like to install it?`)
+            const userInput = await promptly.confirm('Would you like to install this module: (yes)',{default:'yes'})
+            if (!userInput) skip.push(submod.name)
+            else {
+                noSkip.push(submod.name)
+                await getSkips(submod,skip,noSkip)
+            }
+        }
+    } else if (skip.includes(submod.name)) {
+        // if the module is to be skiped but is required then it is removed from the skip list
+        consoleLog('warning',`"${submod.name}" was marked to be skiped but is now required; modules will be installed.`)
+        skip.splice(skip.indexOf(submod.name),1)
+        noSkip.push(submod.name)
+    } else if (!noSkip.includes(submod.name)) {
+        // if it has not already been loaded then it will have its depedinces loaded
+        noSkip.push(submod.name)
+        await getSkips(submod,skip,noSkip)
+    } 
+}
+
+async function getSkips(softmod,skip,noSkip) {
+    await softmod.updateFromJson()
+    const deps = softmod.dependencies
+    for (let i = 0;i < deps.length;i++) await skipPromt(deps[i],skip,noSkip)
+    const subs = softmod.submodules
+    for (let i = 0;i < subs.length;i++) await skipPromt(subs[i],skip,noSkip)
+    consoleLog('info','Checked dependencies for: '+softmod.name)
 }
 
 function moveLocale() {
@@ -355,6 +390,7 @@ function moveLocale() {
             else {
                 await Promise.all(files.map(file => {
                     if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
+                        consoleLog('info','Copyed '+file)
                         return new Softmod(file,'*').copyLocale()
                     }
                 }))
@@ -375,6 +411,44 @@ module.exports = async (name='.',cmd) => {
             // await generateIndex()
             consoleLog('status','Post install locale copying (dry-run only)')
             moveLocale()
+        } else {
+            consoleLog('status','Init of scenario files.')
+            await initDir()
+            // if no module is given then it will look in the current dir to find a json file
+            let softmod
+            if (name == '.') {
+                if (fs.existsSync(rootDir+config.jsonFile)) {
+                    const json = fs.readJSONSync(rootDir+config.jsonFile)
+                    if (json) softmod = new Softmod.fromJson(json)
+                    else new Error('No softmod name supplied and no json found.')
+                }
+            } else {
+                const [softmodName,softmodVersionQuery] = Softmod.extractVersionFromName(name,true)
+                softmod = new Softmod(softmodName,softmodVersionQuery)
+            }
+            // generates a skip queue for optional modules
+            consoleLog('status','Generating skip queue.')
+            const skip = []
+            const noSkip = [softmod.name]
+            await getSkips(softmod,skip,noSkip)
+            consoleLog('input','The following modules will be installed: ')
+            let output = []
+            // loops over modules displaying 5 per line
+            noSkip.forEach(value => {
+                output.push(value)
+                if (output.length == 8) {
+                    console.log(output.join(', '))
+                    output=[]
+                }
+            })
+            if (output.length > 0) console.log(output.join(', '))
+            const userInput = await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
+            if (!userInput) throw new Error('canceled')
+            // starts the install of the first module
+            consoleLog('status','Installing modules...')
+            await softmod.install(skip)
+            // consoleLog('status','Generating index file.')
+            // await generateIndex()
         }
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)

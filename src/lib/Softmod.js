@@ -197,6 +197,7 @@ class Softmod {
         this.parent=json.collection
         this.requires=json.dependencies || json.modules
         this.provides=json.submodules
+        return this
     }
 
     validate(noOverwrite=false) {

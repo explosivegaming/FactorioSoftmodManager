@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 const program = require('commander')
 const fs = require('fs-extra')
+const consoleLog = require('./lib/consoleLog')
 
 // info command (displays info on a module/collection/scenario/submodule)
 program
@@ -47,7 +48,9 @@ program
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-f, --force','forces files to be overriden during install')
     .option('-v, --module-version <version>','defines which version will be retrived')
-    .action((name,dir='.',cmd) => {
+    .action((name='.',dir='.',cmd) => {
+        // if the name is a path then it is used instead of dir
+        if (name.includes('/') || name.includes('\\') && dir == '.') {dir = name;name='.'}
         process.env.dir = dir
         require('./commands/install')(name,cmd)
     })
@@ -94,10 +97,12 @@ program
     .description('a test command')
     .action(async (dir='.',cmd) => {
         process.env.dir = dir
-        await fs.remove(process.env.dir+'/modules')
+        /*await fs.remove(process.env.dir+'/modules')
         const Softmod = require('./lib/Softmod')
         const softmod = new Softmod('ExpGamingCore','*')
-        await softmod.install()
+        await softmod.install()*/
+        const types = ['info','start','success','fail','end','stop','error','status','input','warning','verbose','other']
+        types.forEach(type => consoleLog(type,'this is '+type))
     })
 
 // program info
