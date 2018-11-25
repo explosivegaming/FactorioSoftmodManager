@@ -1,5 +1,5 @@
 const fs = require('fs')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 const zip = require('zip-folder')
 const reader = require('../lib/reader')
 const config = require('../config.json')
@@ -27,7 +27,7 @@ async function addModule(exportsDir,moduleDir,module_name,baseURL) {
         await addJson(data,exportsDir,moduleDir,module_name,data.version,collection,baseURL)
         if (data.type == 'Collection') {
             const files = fs.readdirSync(moduleDir)
-            if (!files) console.log(Chalk.red('Could not read collection dir'))
+            if (!files) console.log(chalk.red('Could not read collection dir'))
             else {
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i]
@@ -50,7 +50,7 @@ module.exports = (options) => {
     if (fs.existsSync(dir+config.modulesDir)) {
         if (!fs.existsSync(dir+'/exports')) fs.mkdirSync(dir+'/exports')
         fs.readdir(dir+config.modulesDir,(error,files) => {
-            if (error) console.log(Chalk.red(error))
+            if (error) console.log(chalk.red(error))
             else {
                 files.forEach(async file => {
                     if (fs.statSync(dir+config.modulesDir+'/'+file).isDirectory()) {

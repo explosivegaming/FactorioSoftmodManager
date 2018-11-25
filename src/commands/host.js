@@ -5,7 +5,7 @@ const fs = require('fs')
 const valid = require('../lib/valid')
 const reader = require('../lib/reader')
 const database = require('../database')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 
 function moduleTemplate(name,version,json) {
     const version_parts = version.split('.')
@@ -135,7 +135,7 @@ function addWatch(dir,interville) {
                 files.forEach(file => fs.unlink(`${dir}/${file}`,() => {}))
                 files = []; index = []
             }
-        }).catch(err => console.log(Chalk.red(err)))
+        }).catch(err => console.log(chalk.red(err)))
     }
 }
 

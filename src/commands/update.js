@@ -4,7 +4,7 @@ const valid = require('../lib/valid')
 const config = require('../config.json')
 const reader = require('../lib/reader')
 const Version = require('../lib/version')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 
 function addCollectionToScenario(dir,modules,collection_name,collection_version,collection_modules) {
     const submodules = fs.readdirSync(dir)
@@ -98,6 +98,6 @@ module.exports = async () => {
         })
     }).catch(error => {
         // logs all errors but ^C
-        if (error.message != 'canceled') console.log(Chalk.red(error))
+        if (error.message != 'canceled') console.log(chalk.red(error))
     })
 }

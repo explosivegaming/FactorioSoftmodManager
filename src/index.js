@@ -1,17 +1,40 @@
 #! /usr/bin/env node
 const program = require('commander')
 const fs = require('fs-extra')
+const config = require('./config')
 const consoleLog = require('./lib/consoleLog')
+
+function softmodDirVal(name='.',dir='.',cmd,path) {
+    // if the name is a path then it is used instead of dir
+    if (name.includes('/') || name.includes('\\') && dir == '.') {dir = name;name='.'}
+    process.env.dir = dir
+    const Softmod = require('./lib/Softmod') // loaded here because of process.env.dir
+    // if no module is given then it will look in the current dir to find a json file
+    let softmod
+    if (name == '.') {
+        if (fs.existsSync(process.env.dir+config.jsonFile)) {
+            const json = fs.readJSONSync(process.env.dir+config.jsonFile)
+            if (json) softmod = Softmod.fromJson(json)
+            else {
+                consoleLog('error','No softmod name supplied and no json found.')
+                return
+            }
+        }
+    } else {
+        const [softmodName,softmodVersionQuery] = Softmod.extractVersionFromName(name,true)
+        softmod = new Softmod(softmodName,cmd.modulesVersion ? cmd.modulesVersion : softmodVersionQuery)
+    }
+    // runs the command
+    require(path)(softmod,cmd)
+}
 
 // info command (displays info on a module/collection/scenario/submodule)
 program
-    .command('info [dir]')
+    .command('info [name] [dir]')
     .description('View info on a module, collection or secenario')
-    .option('-m, --module [module]','view info on a submodule of a collection',(val,modules) => {modules.push(val); return modules},[])
-    .action((dir='.',cmd) => {
-        process.env.dir = dir
-        require('./commands/info')(cmd)
-    })
+    .option('-d, --no-download','will not download any json files')
+    .option('-v, --module-version <version>','defines which version will be retrived')
+    .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/info'))
 
 // init command (creats the json and auto links submodules)
 program
@@ -51,12 +74,7 @@ program
     .option('-z, --keep-zips','does not remove zip files after download')
     .option('-j, --keep-jsons','does not remove json dir after download')
     .option('-v, --module-version <version>','defines which version will be retrived')
-    .action((name='.',dir='.',cmd) => {
-        // if the name is a path then it is used instead of dir
-        if (name.includes('/') || name.includes('\\') && dir == '.') {dir = name;name='.'}
-        process.env.dir = dir
-        require('./commands/install')(name,cmd)
-    })
+    .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/install'))
 
 program
     .command('uninstall [name] [dir]')

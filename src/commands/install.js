@@ -136,7 +136,7 @@ function moveLocale() {
     }).catch(err => consoleLog('error',err))
 }
 
-module.exports = async (name='.',cmd) => {
+module.exports = async (softmod,cmd) => {
     process.env.useForce = cmd.force || ''
     process.env.keepZips = cmd.keepZips || ''
     process.env.skipUserInput = cmd.yesAll || cmd.noAll || ''
@@ -154,18 +154,6 @@ module.exports = async (name='.',cmd) => {
         } else {
             consoleLog('status','Init of scenario files.')
             await initDir()
-            // if no module is given then it will look in the current dir to find a json file
-            let softmod
-            if (name == '.') {
-                if (fs.existsSync(rootDir+config.jsonFile)) {
-                    const json = fs.readJSONSync(rootDir+config.jsonFile)
-                    if (json) softmod = Softmod.fromJson(json)
-                    else new Error('No softmod name supplied and no json found.')
-                }
-            } else {
-                const [softmodName,softmodVersionQuery] = Softmod.extractVersionFromName(name,true)
-                softmod = new Softmod(softmodName,cmd.modulesVersion ? cmd.modulesVersion : softmodVersionQuery)
-            }
             if (!process.env.useForce && softmod.installed) throw new Error('Softmod already installed')
             // generates a skip queue for optional modules
             consoleLog('status','Generating skip queue.')

@@ -1,5 +1,5 @@
 const fs = require('fs')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 const unzip = require('unzip')
 const config = require('../config.json')
 const valid = require('../lib/valid')
@@ -36,7 +36,7 @@ function downloadJson(dir,moduleName,moduleVersion) {
             } else reject(`Json file was invalid`)
             resolve(body)
         })
-    }).catch(err => console.log(Chalk.red(err)))
+    }).catch(err => console.log(chalk.red(err)))
 }
 
 // will get the json file for a module or download it if it is not already
@@ -48,7 +48,7 @@ async function getJson(dir,moduleName,moduleVersion) {
             const rawDownload = await downloadJson(dir,moduleName,moduleVersion)
             resolve(rawDownload.json)
         })
-    }).catch(err => console.log(Chalk.red(err)))
+    }).catch(err => console.log(chalk.red(err)))
 }
 
 // downloads and unzips the module into the module dir, also copies the chached json to the folder
@@ -72,7 +72,7 @@ function downloadModule(dir,moduleName,moduleVersion) {
         // need a better check for valid urls, "url" was just a place holder while making the jsons
         if (url == 'url') {reject('Invalid Url');return}
         if (fs.existsSync(path)) {reject('Already Installed: '+moduleName+'_'+moduleVersion);return}
-        console.log(Chalk`  Downloading ${moduleName}_${version}: {grey ${url}}`)
+        console.log(chalk`  Downloading ${moduleName}_${version}: {grey ${url}}`)
         // starts the download and extraction
         Request(url).pipe(unzip.Extract({path:path})).on('close',() => {
             // once it is downloaded and extracted the module json is copyed from the chache
@@ -87,7 +87,7 @@ function downloadModule(dir,moduleName,moduleVersion) {
         }).on('error',error => {
             reject(error)
         })
-    }).catch(err => console.log(Chalk.red(err)))
+    }).catch(err => console.log(chalk.red(err)))
 }
 
 module.exports = {

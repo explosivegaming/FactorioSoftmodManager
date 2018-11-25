@@ -1,6 +1,6 @@
 // requires
 const valid = require('./valid')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 const config = require('../config.json')
 const glob = require('glob')
 const fs = require('fs')
@@ -21,7 +21,7 @@ function readModuleJson(file,noPrintError) {
         return undefined
     } catch(error) {
         // catch any errors
-        if (!noPrintError) console.log(Chalk.red(error))
+        if (!noPrintError) console.log(chalk.red(error))
         return undefined
     }
 }

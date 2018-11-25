@@ -2,7 +2,7 @@
 const reader = require('./reader')
 const Downloader = require('./downloader')
 const Version = require('./version')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 const config = require('../config.json')
 const fs = require('fs')
 
@@ -69,7 +69,7 @@ function treeDependenciesOffline(dir,tree={},moduleName,moduleVersion,root=true)
             }
             resolve(false)
         }
-    }).catch(err => console.log(Chalk.red(err)))
+    }).catch(err => console.log(chalk.red(err)))
 }
 
 // creates a tree of depdnies so each module will be an array of its depedies
@@ -130,7 +130,7 @@ function treeDependencies(dir,tree={},moduleName,moduleVersion,root=true) {
             if (root) resolve(tree)
             else resolve(tree[treeName])
         }
-    }).catch(err => console.log(Chalk.red(err)))
+    }).catch(err => console.log(chalk.red(err)))
 }
 
 // creates a tree of depdnies so each module will have the modules which it dependes on under its name

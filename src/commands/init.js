@@ -4,7 +4,7 @@ const fs = require('fs')
 const valid = require('../lib/valid')
 const config = require('../config.json')
 const reader = require('../lib/reader')
-const Chalk = require('chalk')
+const chalk = require('chalk')
 
 // a helper function to handle the default values and user io
 async function get_input(dir,data,data_key,options,options_key,name,default_value) {
@@ -127,7 +127,7 @@ module.exports = async (options) => {
                 if (config.cleanModules) for (let submodule_name in data.submodules) if (!valid.submodule(data.submodules[submodule_name])) delete data.submodules[submodule_name]
             } break
             case 'Submodule': {
-                console.log(Chalk.red('In furture please create as a module and use update command on the collection.'))
+                console.log(chalk.red('In furture please create as a module and use update command on the collection.'))
                 await detail(dir,data,options)
                 data.dependencies = reader.getValue(dir,'dependencies',true) || {}
             } break
@@ -144,6 +144,6 @@ module.exports = async (options) => {
         })
     } catch(error) {
         // logs all errors but ^C
-        if (error.message != 'canceled') console.log(Chalk.red(error))
+        if (error.message != 'canceled') console.log(chalk.red(error))
     }
 }

@@ -194,14 +194,18 @@ class Softmod {
 
     async updateFromJson() {
         const json = await this.getJson()
-        this.type = json.type
         this.version=semver.clean(json.version)
-        this.description=json.description
         this.location=json.location
         this.parent=json.collection
         this.requires=json.dependencies || json.modules
         this.provides=json.submodules
         return this
+    }
+
+    jsonValue(key) {
+        if (this._json) {
+            return this._json[key]
+        } else return this[key]
     }
 
     validate(noOverwrite=false) {
