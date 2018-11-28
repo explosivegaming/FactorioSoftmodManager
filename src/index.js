@@ -43,8 +43,6 @@ async function softmodDirVal(name='.',dir='.',cmd,path) {
 program
     .command('info [name] [dir]')
     .description('View info on a module, collection or secenario')
-    .option('-d, --no-download','will not download any json files')
-    .option('-v, --module-version <version>','defines which version will be retrived')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/info'))
 
 // init command (creats the json and auto links submodules)
@@ -136,7 +134,7 @@ program
     .option('-y, --yes-all','skips all prompts, accepting all')
     .option('-n, --no-all','skips all prompts, accepting only to contuine install')
     .option('-v, --module-version <version>','defines which version will be acted on (when aplicaible)')
-    .description('(WIP) A cli to download and install softmods for a factorio scenario')
+    .description('A cli to download and install softmods for a factorio scenario')
 
 // if no command then it displays help
 if (process.argv[2]) program.parse(process.argv)
