@@ -10,10 +10,15 @@ function treeToString(tree,opt,firstLevelPrefix,nextLevelPrefix,depth=0) {
     let output = ''
     for (let softmodName in tree) {
         const softmod = tree[softmodName]
-        if (!softmod.versionName) output+=firstLevelPrefix+softmodName+'\n'+treeToString(softmod,opt,firstLevelPrefix,nextLevelPrefix,depth+1)
+        if (!softmod.versionName) output+=firstLevelPrefix+'   '+softmodName+'\n'+treeToString(softmod,opt,firstLevelPrefix,nextLevelPrefix,depth+1)
         else {
-            if (opt.includes(softmod.name)) output+=firstLevelPrefix+nextLevelPrefix.repeat(depth)+`(${softmod.versionName})\n`
-            else output+=firstLevelPrefix+nextLevelPrefix.repeat(depth)+softmod.versionName+'\n'
+            output+=firstLevelPrefix
+            let index = 0
+            if (softmod.installed) index++
+            if (opt.includes(softmod.name)) index+=2
+            output+=(['-- ','#- ','-? ','#? '])[index]+nextLevelPrefix.repeat(depth)
+            if (depth > 0) output+=' '
+            output+=softmod.versionName+'\n'
         }
     }
     return output
@@ -21,27 +26,28 @@ function treeToString(tree,opt,firstLevelPrefix,nextLevelPrefix,depth=0) {
 
 module.exports = async (softmod,cmd) => {
     consoleLog('status','Generating Preview...')
-    if (!cmd.download) {
-        if (softmod.installed) await softmod.updateFromJson()
-        else {
-            consoleLog('error','Softmod not installed can not get info')
-            return
-        }
-    } else await softmod.updateFromJson()
+    if (cmd.download) await softmod.updateFromJson()
+    if (!softmod.version) {
+        consoleLog('error','Could not download or read json for: '+softmod.versionName)
+        return
+    }
     const deatils = ['author','contact','license','location']
     const dependencies = softmod.dependencies
     const dependenciesTree = {}
     const optDependencies = []
     const reqDependencies = []
     const submodules = softmod.submodules
+    consoleLog('info','Finding submodules')
     await Promise.all(submodules.map(submod => submod.updateFromJson())) // will never download as it is loaded from the json
     // adds submodule dependencies to the overall dependencies array
     submodules.forEach(submod => {
+        consoleLog('info','Added '+submod.name)
         submod.dependencies.forEach(dep => {
             if (!dep.name.includes(softmod.name)) dependencies.push(dep)
         })
     })
     // sorts them into a tree structure
+    consoleLog('info','Finding dependencies')
     dependencies.forEach(submod => {
         // makes tree structure
         const path = submod.name.split('.')
@@ -63,6 +69,8 @@ module.exports = async (softmod,cmd) => {
             reqDependencies.push(submod.name)
         }
     })
+    consoleLog('info',`Found ${dependencies.length} possible dependencies`)
+    consoleLog('info','Converting dependency tree to string')
     const depTreeString = treeToString(dependenciesTree,optDependencies,'  ','_>')
     // displays the generated infomation
     consoleLog('success','Displaying Preview:')
@@ -79,4 +87,5 @@ module.exports = async (softmod,cmd) => {
             console.log(chalk`  ${submod.name.replace(softmod.name+'.','')}: ${submod.jsonValue('description')}`)
         })
     }
+    consoleLog('status','Command Finnished')
 }

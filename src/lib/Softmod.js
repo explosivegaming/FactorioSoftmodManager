@@ -59,6 +59,24 @@ class Softmod {
         else return softmodVersion
     }
 
+    // uninstalls the softmod and dependices
+    uninstall(recur=false,skip=[]) {
+        // if it is already installed then it is not reinstalled unless force is used
+        if (!this.installed && !process.env.useForce) return
+        // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
+        if (skip.includes(this.name) || Softmod.installChache.includes(this.name)) return
+        installChache.push(this.name)
+        // starts uninstall process
+        consoleLog('start','Uninstalling softmod: '+this.versionName)
+        return new Promise(async (resolve,reject) => {
+            await this.readJson(true)
+            if (recur) await Promise.all(this.dependencies.map(softmod => softmod.uninstall(true,skip)).concat(this.submodules.map(softmod => softmod.uninstall(true,skip))))
+            fs.removeSync(this.downloadPath)
+            consoleLog('success','Uninstalled softmod: '+this.versionName)
+            resolve()
+        }).catch(err => consoleLog('error',err))
+    }
+
     // installs the softmod
     install(skip=[]) {
         // if it is already installed then it is not reinstalled unless force is used
@@ -172,6 +190,10 @@ class Softmod {
             requestDatabase.get(`/package/${this.name}?version=${this.versionQurey}`,{json:true},(err,res,body) => {
                 if (err) reject(err)
                 else {
+                    if (!body.latest) {
+                        reject('Could not download json for: '+this.versionName)
+                        return
+                    }
                     consoleLog('info',`Downloaded json for: ${this.name}@${body.latest}`)
                     const downloadPath = `${rootDir+config.jsonDir}/${this.name}_${body.latest}.json`
                     Softmod.jsonChache[`${this.name}@${body.latest}`] = downloadPath
@@ -183,17 +205,28 @@ class Softmod {
         }).catch(err => consoleLog('error',err))
     }
 
+    async readJson(update) {
+        const json = fs.readJSONSync(this.downloadPath+config.jsonFile,{throws:false})
+        if (update) {
+            this._json = json
+            await this.updateFromJson()
+        }
+        return json
+    }
+
     async getJson() {
         if (!this._json) {
             let jsonFile = Softmod.jsonChache[this.versionName]
-            if (!fs.existsSync(jsonFile)) jsonFile = await this.downloadJson()
-            this._json = await fs.readJSON(jsonFile)
+            if (!fs.existsSync(jsonFile) && process.env.download) jsonFile = await this.downloadJson()
+            if (!jsonFile || !process.env.download) jsonFile = this.downloadPath+config.jsonFile
+            this._json = fs.readJSONSync(jsonFile,{throws:false})
         }
         return this._json
     }
 
     async updateFromJson() {
         const json = await this.getJson()
+        if (!json) return this
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection

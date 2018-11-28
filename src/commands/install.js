@@ -137,10 +137,7 @@ function moveLocale() {
 }
 
 module.exports = async (softmod,cmd) => {
-    process.env.useForce = cmd.force || ''
     process.env.keepZips = cmd.keepZips || ''
-    process.env.skipUserInput = cmd.yesAll || cmd.noAll || ''
-    process.env.skipUserInputValue = cmd.yesAll || ''
     try {
         if (cmd.dryRun) {
             // nothing will be downloaded
@@ -161,16 +158,7 @@ module.exports = async (softmod,cmd) => {
             const noSkip = [softmod.name]
             await getSkips(softmod,skip,noSkip)
             consoleLog('input','The following modules will be installed: ')
-            let output = []
-            // loops over modules displaying 5 per line
-            noSkip.forEach(value => {
-                output.push(value)
-                if (output.length == 5) {
-                    console.log(output.join(', '))
-                    output=[]
-                }
-            })
-            if (output.length > 0) console.log(output.join(', '))
+            console.log(noSkip.join(', '))
             let userInput = true
             if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
             if (!userInput) throw new Error('canceled')
@@ -182,6 +170,7 @@ module.exports = async (softmod,cmd) => {
             saveIndex(index)
             if (!cmd.keepJsons) fs.remove(rootDir+config.jsonDir)
         }
+        consoleLog('status','Command Finnished')
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

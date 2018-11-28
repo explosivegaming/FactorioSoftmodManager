@@ -4,7 +4,7 @@ const fs = require('fs-extra')
 const config = require('./config')
 const consoleLog = require('./lib/consoleLog')
 
-function softmodDirVal(name='.',dir='.',cmd,path) {
+async function softmodDirVal(name='.',dir='.',cmd,path) {
     // if the name is a path then it is used instead of dir
     if (name.includes('/') || name.includes('\\') && dir == '.') {dir = name;name='.'}
     process.env.dir = dir
@@ -22,8 +22,19 @@ function softmodDirVal(name='.',dir='.',cmd,path) {
         }
     } else {
         const [softmodName,softmodVersionQuery] = Softmod.extractVersionFromName(name,true)
-        softmod = new Softmod(softmodName,cmd.modulesVersion ? cmd.modulesVersion : softmodVersionQuery)
+        softmod = new Softmod(softmodName,cmd.parent.modulesVersion ? cmd.parent.modulesVersion : softmodVersionQuery)
+        if (!cmd.parent.download) {
+            const json = await softmod.readJson(true)
+            if (!json) {
+                consoleLog('error','Softmod not installed and download is disabled')
+                return
+            }
+        }
     }
+    process.env.download = cmd.parent.download || ''
+    process.env.useForce = cmd.parent.force || ''
+    process.env.skipUserInput = cmd.parent.yesAll || cmd.parent.noAll || ''
+    process.env.skipUserInputValue = cmd.parent.yesAll || ''
     // runs the command
     require(path)(softmod,cmd)
 }
@@ -67,28 +78,18 @@ program
 program
     .command('install [name] [dir]')
     .description('Installs all modules that are required to run a secario or adds a dependencie for a module')
-    .option('-y, --yes-all','skips all prompts, accepting all')
-    .option('-n, --no-all','skips all prompts, accepting only to contuine install')
     .option('-d, --dry-run','will not download any thing but will move and create files')
-    .option('-f, --force','forces files to be overriden during install')
     .option('-z, --keep-zips','does not remove zip files after download')
     .option('-j, --keep-jsons','does not remove json dir after download')
-    .option('-v, --module-version <version>','defines which version will be retrived')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/install'))
 
 program
     .command('uninstall [name] [dir]')
     .description('Uninstalls this module and any dependices that are exclusive to the selected module')
-    .option('-f, --force','forces files to be removed when their are required')
-    .option('-r, --recursive','uninstalls all dependices if there are no longer needed')
-    .option('-c, --clear-jsons','removes all jsons and does not touch any modules')
-    .option('-j, --remove-json','will also remove the downloaded json file if it is present')
-    .option('-l, --keep-locale','does not remove the locale file for the modules')
-    .option('-a, --remove-all','remove all fsm files from this scenario')
-    .action((name,dir='.',cmd) => {
-        process.env.dir = dir
-        require('./commands/uninstall')(name,cmd)
-    })
+    .option('-r, --no-recursion','uninstalls all dependices if there are no longer needed')
+    .option('-j, --clear-jsons','removes temp json dir')
+    .option('-a, --all','remove all fsm files from this scenario')
+    .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/uninstall'))
 
 // update command (same as init but only updates modules/submodules)
 program
@@ -130,6 +131,11 @@ program
 program
     .version('0.1.0')
     .usage('fsm <command> [options]')
+    .option('-d, --no-download','will not download any files')
+    .option('-f, --force','forces the prossess to run when it would cancel normally')
+    .option('-y, --yes-all','skips all prompts, accepting all')
+    .option('-n, --no-all','skips all prompts, accepting only to contuine install')
+    .option('-v, --module-version <version>','defines which version will be acted on (when aplicaible)')
     .description('(WIP) A cli to download and install softmods for a factorio scenario')
 
 // if no command then it displays help
