@@ -32,6 +32,13 @@ This npm module can be used to download and install softmods (mods which require
 
 This will download and install our package and it can be used from command line using the alais "fsm".
 
+__Options:__ (most commands)
+* -d, --no-download: no files will be downloaded and no api requests are made
+* -f, --force: force will be used to override many restrictions
+* -y, --yes-all: will skip all user prompts, accepting all
+* -n, --no-all: will skip all user prompts, declining all but confirmations
+* -v, --module-version: define the version of the module to get (when one is supplied)
+
 ## Init
 `fsm init [dir] [options]`
 
@@ -78,19 +85,15 @@ __Options:__
 
 Displays the info about a scenario, module, collection or submodule in a clean way on the command line. Dir should point to the scenario and then using -m to access the modules and submodules of a collection. the option -m can be chained upto two times to go from scenario to collection to submodule any extra will be ingroned.
 
-__Options:__
-* -m, --module \<module>: the module of a scenario or the submoule of a collection
-
 ## Install
 `fsm install [name] [dir] [options]`
 
 The main feature of this script, allows you to download and install softmods or full scenarios. The name given will be looked up on the index database to retive a json file, this json file can then be used to get the download location and any dependieces that are required. If a sceanrio is given as the name then all the modules for that secnario are downloaded; if a collection is given then all the submodules of that collection and their dependieces will be downloaded; if it is a module then the module and its dependices will be downloaded. If there are optional dependices then the user will be asked if their want these to be installed or not. Once all are installed then starting the scenario will load all of the modules and their data. The name of the module can include @X.Y.Z if you wish to ask for a version rather than using the -v option.
 
 __Options:__
-* -y, --yes-all: will skip all promts using the default values
 * -d, --dry-run: will run the install but will skip any downloading, only creates lua index and moves locale files
-* -f, --force: forces a reinstall of all modules that are downloaded, does not effect modules not downloaded
-* -v, --module-version \<version>: the version of the module to get, can also use name@version 
+* -z, --keep-zips: does not delete downloaded zip files for the softmods
+* -j, --keep-jsons: does not remove the json dir after installion
 
 __Versions:__
 * X.Y.Z: will only accept this one version to be installed, most likely to cause conflicts
@@ -101,6 +104,7 @@ __Versions:__
 * \^X.Y.Z: will accept any version which is complatible with the selected (X=X and Y>=Y)
 * \~X.Y.Z: will accept a small range of versions (X=X and Y in range +/-2)
 * \?X.Y.Z: will show that this is an optional depentincy, not very useful for install command, works with any of the above
+* For more info see systematic versioning
 
 ## Uninstall
 `fsm uninstall [name] [dir] [options]`
@@ -108,10 +112,9 @@ __Versions:__
 The contary to install, will remove a module or collection and all of the unqiue dependecies (not used by another module). This prosscess will remove the locale files of that module and all other files within the module. Using -a tag will remove all of the fsm files that are within the scenario and restore the control.lua to the default factorio freeplay one. Using -c will not remove any modules but will instead clear the json dir of any downloaded jsons. Uninstall does not care about version and will remove which ever module it find by the given name.
 
 __Options:__
-* -c, --clear-jsons: clears the json dir and does not remove any modules, name does not need to be defined, first param will be used as the dir
-* -a, --remove-all: removes all fsm files from the scenario and restores freeplay control.lua, name does not need to be defined, first param will be used as the dir
-* -j, --remove-json: this will remove the downloaded json from the json dir when the module is uninstalled
-* -l, --keep-locale: keeps the locale files of a module when the rest of the module is removed
+* -r, --no-recursion: will only uninstall the selected module and not its dependicies
+* -c, --clear-jsons: deletes the json dir incase it is present
+* -a, --remove-all: removes all fsm files from the scenario and restores freeplay control.lua
 
 ## Host
 `fsm host [dir] [options]`
