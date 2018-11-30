@@ -69,6 +69,8 @@ program
     .description('Builds the module or collection and will give the exports which can then be added to the host')
     .option('-b, --create-backup','the old json will be renamed to have .bak on the end of the name')
     .option('-o, --output-dir','the dir that the zips and jsons will be saved to relative to the active dir')
+    .option('-a, --build-all','builds all modules that are insatlled')
+    .option('-i, --version-increment <version>','increments the version number by X.Y.Z')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/build'))
 
 // install command (used to install a scenario/module/collection/submodule)
@@ -83,7 +85,7 @@ program
 
 program
     .command('uninstall [name] [dir]')
-    .alias('u')
+    .alias('uni')
     .description('Uninstalls this module and any dependices that are exclusive to the selected module')
     .option('-r, --no-recursion','uninstalls all dependices if there are no longer needed')
     .option('-j, --clear-jsons','removes temp json dir')
@@ -93,7 +95,7 @@ program
 // update command (same as init but only updates modules/submodules)
 program
     .command('update [dir]')
-    .alias('u')
+    .alias('up')
     .description('Updates modules, submodules and collections to all have the same information')
     .action((dir='.',cmd) => {
         process.env.dir = dir
