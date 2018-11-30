@@ -59,6 +59,50 @@ class Softmod {
         else return softmodVersion
     }
 
+    async copyLocale() {
+        function recur(dir,dirName) {
+            return new Promise((resolve,reject) => {
+                fs.readdir(dir,(err,files) => {
+                    if (err) reject(err)
+                    else {
+                        files.forEach(file => {
+                            if (fs.statSync(`${dir}/${file}`).isDirectory()) recur.apply(this,[`${dir}/${file}`,file])
+                            else {
+                                if (file.includes('.cfg')) {
+                                    let lang = dirName
+                                    if (dirName == config.localeDir) lang = file.replace('.cfg','')
+                                    fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                }
+                            }
+                        })
+                        resolve()
+                    }
+                })
+            }).catch(err => {
+                if (!err.message.includes('ENOENT')) consoleLog('error',err)
+            })
+        }
+        await recur.apply(this,[this.downloadPath+config.localeDir,config.localeDir])
+        await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
+            if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
+                return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
+            }
+        })).catch(err => consoleLog('error',err))
+    }
+
+    async build(save=true,bak=false) {
+        // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
+        if (Softmod.installChache.includes(this.name)) return
+        installChache.push(this.name)
+        // makes sure that the json is loaded
+        await this.readJson(true)
+        consoleLog('start','Building json for: '+this.versionName)
+        // awaits all actions on json
+        await Promise.all([this.updateCollection(true),this.udpateProvides(true),this.updateRequires(true)])
+        if (save) await this.writeJson(bak)
+        consoleLog('success',`Json for ${this.versionName} has been built.`)
+    }
+
     // uninstalls the softmod and dependices
     uninstall(recur=false,skip=[]) {
         // if it is already installed then it is not reinstalled unless force is used
@@ -97,37 +141,6 @@ class Softmod {
                 resolve()
             }
         }).catch(err => consoleLog('error',err))
-    }
-    
-    async copyLocale() {
-        function recur(dir,dirName) {
-            return new Promise((resolve,reject) => {
-                fs.readdir(dir,(err,files) => {
-                    if (err) reject(err)
-                    else {
-                        files.forEach(file => {
-                            if (fs.statSync(`${dir}/${file}`).isDirectory()) recur.apply(this,[`${dir}/${file}`,file])
-                            else {
-                                if (file.includes('.cfg')) {
-                                    let lang = dirName
-                                    if (dirName == config.localeDir) lang = file.replace('.cfg','')
-                                    fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
-                                }
-                            }
-                        })
-                        resolve()
-                    }
-                })
-            }).catch(err => {
-                if (!err.message.includes('ENOENT')) consoleLog('error',err)
-            })
-        }
-        await recur.apply(this,[this.downloadPath+config.localeDir,config.localeDir])
-        await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
-            if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
-                return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
-            }
-        })).catch(err => consoleLog('error',err))
     }
 
     downloadPackage() {
@@ -214,6 +227,11 @@ class Softmod {
         return json
     }
 
+    async writeJson(bak=false) {
+        const surfix = bak && '.bak' || ''
+        await fs.writeJSONSync(this.downloadPath+config.jsonFile+surfix,this._json)
+    }
+
     async getJson() {
         if (!this._json) {
             let jsonFile = Softmod.jsonChache[this.versionName]
@@ -230,8 +248,8 @@ class Softmod {
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection
-        this.requires=json.dependencies || json.modules
-        this.provides=json.submodules
+        this.requires=json.dependencies || json.modules || {}
+        this.provides=json.submodules || {}
         return this
     }
 
@@ -239,6 +257,92 @@ class Softmod {
         if (this._json) {
             return this._json[key]
         } else return this[key]
+    }
+
+    async updateCollection(saveToJson=false) {
+        // reads the name of the above dir to check for a parent
+        const partentPath = this.downloadPath.substring(0,this.downloadPath.lastIndexOf('/'))
+        if (partentPath != rootDir+config.modulesDir) {
+            // the parent dir is not the module dir, so this is a sub module
+            const parentName = partentPath.substring(partentPath.lastIndexOf('/')+1)
+            const softmod = new Softmod(parentName)
+            await softmod.readJson(true)
+            consoleLog('info','Detected module collection as: '+softmod.versionName)
+            this.parent = `${parentName}@${softmod.version}`
+            if (saveToJson && this._json) this._json.collection = this.parent
+            return this.parent
+        }
+    }
+
+    udpateProvides(saveToJson=false) {
+        // reads the current dir and checks for submodules
+        return new Promise((resolve,reject) => {
+            const submodules = this.provides || {}
+            fs.readdir(this.downloadPath,async (err,files) => {
+                if (err) reject(err)
+                else {
+                    for (let i=0;i<files.length;i++) {
+                        const file = files[i]
+                        if (fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
+                            const submod = new Softmod(`${this.name}.${file}`)
+                            const json = await submod.readJson(true)
+                            if (json) {
+                                // if it is a directory and has a moudle json file
+                                consoleLog('info','Detected submodule: '+submod.versionName)
+                                submodules[submod.name] = submod.version
+                            }
+                        }
+                    }
+                    if (Object.keys(submodules).length > 0) this.provides = submodules
+                    if (saveToJson && this._json) this._json.submodules = this.provides 
+                    resolve(this.provides)
+                }
+            })
+        }).catch(err => consoleLog('error',err))
+    }
+
+    updateRequires(saveToJson=false) {
+        // reads the control.lua and gets the installed versions for required modules
+        return new Promise((resolve,reject) => {
+            const regex = /(?:local \w+\s*=\s*require\('([^@]+?)(?:@([\^?<>=]+?\d\.\d\.\d))?'\))|(?:if loaded_modules\['([^@]+?)(?:@([\^?<>=]+?\d\.\d\.\d))?'\] then)/g
+            // Regex breakdown: (1) capture for required module name (2) capture for required module version if present (3) capture for opt module name (4) capture for opt module version if present
+            const dependencies = this.requires || {}
+            fs.readFile(this.downloadPath+config.luaFile,async (err,data) => {
+                if (err) {
+                    if (err.code == 'ENOENT') resolve()
+                    else reject(err)
+                } else {
+                    const promises = []
+                    data = data.toString().replace(regex,(fm,m1,m2,m3,m4) => {
+                        promises.push(new Promise(async (resolve) => {
+                            const prefix = m3 && '?' || ''
+                            const moduleName = m1 || m3
+                            const moduleVersion = m2 || m4
+                            if (moduleVersion) {
+                                dependencies[moduleName] = moduleVersion
+                                consoleLog('info','Detected dependency: '+moduleName+'@'+moduleVersion)
+                            } else {
+                                // if version not present then will get the currently installed version
+                                const dep = new Softmod(moduleName)
+                                const json = await dep.readJson(true)
+                                if (json) {
+                                    dependencies[moduleName] = prefix+'^'+dep.version
+                                    consoleLog('info',`Detected dependency: ${moduleName}@${prefix}^${dep.version}`)
+                                } else {
+                                    dependencies[moduleName] = prefix+'*'
+                                    consoleLog('info',`Detected dependency: ${moduleName}@${prefix}*`)
+                                }
+                            }
+                            resolve()
+                        }).catch(err => consoleLog('error',err)))
+                    })
+                    await Promise.all(promises)
+                    if (Object.keys(dependencies).length > 0) this.requires = dependencies
+                    if (saveToJson && this._json) this._json.dependencies = this.requires 
+                    resolve(this.requires)
+                }
+            })
+        }).catch(err => consoleLog('error',err))
     }
 
     validate(noOverwrite=false) {

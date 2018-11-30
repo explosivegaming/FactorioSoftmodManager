@@ -117,12 +117,10 @@ program
     .description('a test command')
     .action(async (dir='.',cmd) => {
         process.env.dir = dir
-        /*await fs.remove(process.env.dir+'/modules')
         const Softmod = require('./lib/Softmod')
-        const softmod = new Softmod('ExpGamingCore','*')
-        await softmod.install()*/
-        const types = ['info','start','success','fail','end','stop','error','status','input','warning','verbose','other']
-        types.forEach(type => consoleLog(type,'this is '+type))
+        const softmod = new Softmod('ExpGamingCore.Gui')
+        await softmod.readJson(true)
+        await softmod.build(true,true)
     })
 
 // program info
