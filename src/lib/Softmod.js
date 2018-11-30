@@ -31,7 +31,7 @@ class Softmod {
     // creates a Softmod from a json object, oppional override for name
     static fromJson(json,nameOverride) {
         const softmod = new Softmod(nameOverride ? nameOverride : json.name,json.version)
-        softmod._json = json
+        softmod.json = json
         softmod.updateFromJson()
         return softmod
     }
@@ -40,7 +40,7 @@ class Softmod {
     static async saveJson(name,versionQurey,path) {
         const softmod = new this(name,versionQurey)
         const json = await softmod.getJson()
-        fs.writeJSONSync(path,json)
+        fs.writeJSONSync(path,json,{spaces:2})
     }
 
     // takes a softmod name and returns the version number, or the name (with version removed) and version number
@@ -66,7 +66,7 @@ class Softmod {
                     if (err) reject(err)
                     else {
                         files.forEach(file => {
-                            if (fs.statSync(`${dir}/${file}`).isDirectory()) recur.apply(this,[`${dir}/${file}`,file])
+                            if (fs.statSync(`${dir}/${file}`).isDirectory() && fs.existsSync(`${dir}/${file}/${config.jsonFile}`)) recur.apply(this,[`${dir}/${file}`,file])
                             else {
                                 if (file.includes('.cfg')) {
                                     let lang = dirName
@@ -158,7 +158,7 @@ class Softmod {
                         .pipe(unzipper.Extract({ path: this.downloadPath}))
                         .on('error',err => reject('Pipe Error: '+err))
                         .on('finish',async () => {
-                            if (this._json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this._json)
+                            if (this.json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this.json)
                             if (this.parent) {
                                 const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
                                 await Softmod.saveJson(parentName,parentVersion,this.downloadPath+'/..'+config.jsonFile)
@@ -212,6 +212,7 @@ class Softmod {
                     Softmod.jsonChache[`${this.name}@${body.latest}`] = downloadPath
                     Softmod.jsonChache[`${this.name}@${this.versionQurey}`] = downloadPath
                     fs.writeJSONSync(downloadPath,body.json)
+                    this.json = body.json
                     resolve(downloadPath)
                 }
             })
@@ -220,42 +221,61 @@ class Softmod {
 
     async readJson(update) {
         const json = fs.readJSONSync(this.downloadPath+config.jsonFile,{throws:false})
-        if (update) {
-            this._json = json
+        if (json && update) {
+            this.json = json
             await this.updateFromJson()
         }
         return json
     }
 
-    async writeJson(bak=false) {
-        const surfix = bak && '.bak' || ''
-        await fs.writeJSONSync(this.downloadPath+config.jsonFile+surfix,this._json)
+    writeJson(bak=false) {
+        return new Promise(async (resolve,reject) => {
+            if (bak) {
+                fs.rename(this.downloadPath+config.jsonFile,this.downloadPath+config.jsonFile+'.bak',async err => {
+                    if (err) reject(err)
+                    else {
+                        await fs.writeJSON(this.downloadPath+config.jsonFile,this.json,{spaces:2}).catch(reject)
+                        resolve()
+                    }
+                })
+            } else {
+                await fs.writeJSON(this.downloadPath+config.jsonFile,this.json,{spaces:2}).catch(reject)
+                resolve()
+            }
+        })
     }
 
     async getJson() {
-        if (!this._json) {
+        if (!this.json) {
             let jsonFile = Softmod.jsonChache[this.versionName]
             if (!fs.existsSync(jsonFile) && process.env.download) jsonFile = await this.downloadJson()
             if (!jsonFile || !process.env.download) jsonFile = this.downloadPath+config.jsonFile
-            this._json = fs.readJSONSync(jsonFile,{throws:false})
+            this.json = fs.readJSONSync(jsonFile,{throws:false})
         }
-        return this._json
+        return this.json
     }
 
     async updateFromJson() {
         const json = await this.getJson()
-        if (!json) return this
+        if (!json || !json.version) return this
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection
         this.requires=json.dependencies || json.modules || {}
         this.provides=json.submodules || {}
+        // this is some migration code to remove objects from submodules
+        for (let key in this.provides) {
+            if (typeof this.provides[key] == 'object') {
+                this.provides[`${this.name}.${key}`]=this.provides[key].version
+                delete this.provides[key]
+            }
+        }
         return this
     }
 
     jsonValue(key) {
-        if (this._json) {
-            return this._json[key]
+        if (this.json) {
+            return this.json[key]
         } else return this[key]
     }
 
@@ -267,9 +287,9 @@ class Softmod {
             const parentName = partentPath.substring(partentPath.lastIndexOf('/')+1)
             const softmod = new Softmod(parentName)
             await softmod.readJson(true)
-            consoleLog('info','Detected module collection as: '+softmod.versionName)
+            consoleLog('info',`Detected collection: ${softmod.versionName} for ${this.versionName}`)
             this.parent = `${parentName}@${softmod.version}`
-            if (saveToJson && this._json) this._json.collection = this.parent
+            if (saveToJson && this.json) this.json.collection = this.parent
             return this.parent
         }
     }
@@ -288,13 +308,20 @@ class Softmod {
                             const json = await submod.readJson(true)
                             if (json) {
                                 // if it is a directory and has a moudle json file
-                                consoleLog('info','Detected submodule: '+submod.versionName)
+                                consoleLog('info',`Detected submodule: ${submod.versionName} for ${this.versionName}`)
                                 submodules[submod.name] = submod.version
                             }
                         }
                     }
                     if (Object.keys(submodules).length > 0) this.provides = submodules
-                    if (saveToJson && this._json) this._json.submodules = this.provides 
+                    if (saveToJson && this.json) this.json.submodules = this.provides
+                    // this is some migration code to remove objects from submodules
+                    for (let key in this.provides) {
+                        if (typeof this.provides[key] == 'object') {
+                            this.provides[`${this.name}.${key}`]=this.provides[key].version
+                            delete this.provides[key]
+                        }
+                    }
                     resolve(this.provides)
                 }
             })
@@ -320,17 +347,17 @@ class Softmod {
                             const moduleVersion = m2 || m4
                             if (moduleVersion) {
                                 dependencies[moduleName] = moduleVersion
-                                consoleLog('info','Detected dependency: '+moduleName+'@'+moduleVersion)
+                                consoleLog('info',`Detected dependency: ${moduleName}@${moduleVersion} for ${this.versionName}`)
                             } else {
                                 // if version not present then will get the currently installed version
                                 const dep = new Softmod(moduleName)
                                 const json = await dep.readJson(true)
                                 if (json) {
                                     dependencies[moduleName] = prefix+'^'+dep.version
-                                    consoleLog('info',`Detected dependency: ${moduleName}@${prefix}^${dep.version}`)
+                                    consoleLog('info',`Detected dependency: ${moduleName}@${prefix}^${dep.version} for ${this.versionName}`)
                                 } else {
                                     dependencies[moduleName] = prefix+'*'
-                                    consoleLog('info',`Detected dependency: ${moduleName}@${prefix}*`)
+                                    consoleLog('info',`Detected dependency: ${moduleName}@${prefix}* for ${this.versionName}`)
                                 }
                             }
                             resolve()
@@ -338,7 +365,7 @@ class Softmod {
                     })
                     await Promise.all(promises)
                     if (Object.keys(dependencies).length > 0) this.requires = dependencies
-                    if (saveToJson && this._json) this._json.dependencies = this.requires 
+                    if (saveToJson && this.json) this.json.dependencies = this.requires 
                     resolve(this.requires)
                 }
             })
@@ -380,7 +407,7 @@ class Softmod {
         const rtn = []
         if (this.provides) {
             for (let softmodName in this.provides) {
-                rtn.push(Softmod.fromJson(this.provides[softmodName],`${this.name}.${softmodName}`))
+                rtn.push(new Softmod(softmodName,this.provides[softmodName]))
             }
         }
         return rtn

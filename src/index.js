@@ -64,17 +64,17 @@ program
     })
 
 program
-    .command('build [dir]')
+    .command('build [name] [dir]')
+    .alias('b')
     .description('Builds the module or collection and will give the exports which can then be added to the host')
-    .option('-u, --url <url>','the base url which will be used as the host for the urls, such as a git version (...releases/download/v4.0-core/)')
-    .action((dir='.',cmd) => {
-        process.env.dir = dir
-        require('./commands/build')(cmd)
-    })
+    .option('-b, --create-backup','the old json will be renamed to have .bak on the end of the name')
+    .option('-o, --output-dir','the dir that the zips and jsons will be saved to relative to the active dir')
+    .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/build'))
 
 // install command (used to install a scenario/module/collection/submodule)
 program
     .command('install [name] [dir]')
+    .alias('i')
     .description('Installs all modules that are required to run a secario or adds a dependencie for a module')
     .option('-d, --dry-run','will not download any thing but will move and create files')
     .option('-z, --keep-zips','does not remove zip files after download')
@@ -83,6 +83,7 @@ program
 
 program
     .command('uninstall [name] [dir]')
+    .alias('u')
     .description('Uninstalls this module and any dependices that are exclusive to the selected module')
     .option('-r, --no-recursion','uninstalls all dependices if there are no longer needed')
     .option('-j, --clear-jsons','removes temp json dir')
@@ -92,6 +93,7 @@ program
 // update command (same as init but only updates modules/submodules)
 program
     .command('update [dir]')
+    .alias('u')
     .description('Updates modules, submodules and collections to all have the same information')
     .action((dir='.',cmd) => {
         process.env.dir = dir
@@ -101,6 +103,7 @@ program
 // host command (starts a host server, in furture this will connect to a master to allow more than a single host)
 program
     .command('host [dir]')
+    .alias('h')
     .description('Sets up a web api endpoint on this machine; a place holder for allowing uploading of modules')
     .option('-p, --port','port to host server on')
     .option('-u, --update','loads new modules from the modules folder into the database')
@@ -117,10 +120,12 @@ program
     .description('a test command')
     .action(async (dir='.',cmd) => {
         process.env.dir = dir
+        process.env.download = true
         const Softmod = require('./lib/Softmod')
-        const softmod = new Softmod('ExpGamingCore.Gui')
-        await softmod.readJson(true)
-        await softmod.build(true,true)
+        const softmod = new Softmod('ExpGamingCore')
+        await softmod.updateFromJson()
+        console.log(softmod)
+        console.log(softmod.submodules)
     })
 
 // program info

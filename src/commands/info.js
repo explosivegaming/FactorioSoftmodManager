@@ -26,7 +26,7 @@ function treeToString(tree,opt,firstLevelPrefix,nextLevelPrefix,depth=0) {
 
 module.exports = async (softmod,cmd) => {
     consoleLog('status','Generating Preview...')
-    if (cmd.download) await softmod.updateFromJson()
+    if (process.env.download) await softmod.updateFromJson()
     if (!softmod.version) {
         consoleLog('error','Could not download or read json for: '+softmod.versionName)
         return

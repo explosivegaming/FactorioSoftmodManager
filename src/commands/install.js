@@ -47,7 +47,7 @@ async function skipPromt(submod,skip,noSkip,forceRecur) {
         noSkip.push(submod.name)
     } else if (forceRecur || !noSkip.includes(submod.name)) {
         // if it has not already been loaded then it will have its depedinces loaded
-        noSkip.push(submod.name)
+        if (!forceRecur) noSkip.push(submod.name)
         await getSkips(submod,skip,noSkip)
     } 
 }
