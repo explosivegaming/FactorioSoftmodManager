@@ -6,7 +6,6 @@ const requestDatabase = request.defaults({baseUrl:config.serverURL})
 const unzipper = require('unzip')
 const fs = require('fs-extra')
 const consoleLog = require('./consoleLog')
-const valid = require('./valid')
 const semver = require('semver')
 
 const rootDir = process.env.dir
@@ -90,12 +89,12 @@ class Softmod {
         })).catch(err => consoleLog('error',err))
     }
 
-    async build(save=true,bak=false) {
+    async build(save=true,bak=false,skipRead=false) {
         // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
         if (Softmod.installChache.includes(this.name)) return
         installChache.push(this.name)
         // makes sure that the json is loaded
-        await this.readJson(true)
+        if (!skipRead) await this.readJson(true,frea)
         consoleLog('start','Building json for: '+this.versionName)
         // awaits all actions on json
         await Promise.all([this.updateCollection(true),this.udpateProvides(true),this.updateRequires(true)])
@@ -374,6 +373,14 @@ class Softmod {
 
     validate(noOverwrite=false) {
         // needs re doing for class
+    }
+
+    incrementVeresion(versionType,saveToJson=false,bak=false) {
+        this.version = semver.inc(this.version,versionType)
+        if (saveToJson && this.json) {
+            this.json.version = this.version 
+            return this.writeJson(bak)
+        }
     }
 
     get installed() {

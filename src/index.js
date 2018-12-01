@@ -33,8 +33,8 @@ async function softmodDirVal(name='.',dir='.',cmd,path) {
     }
     process.env.download = cmd.parent.download || ''
     process.env.useForce = cmd.parent.force || ''
-    process.env.skipUserInput = cmd.parent.yesAll || cmd.parent.noAll || ''
-    process.env.skipUserInputValue = cmd.parent.yesAll || ''
+    process.env.skipUserInput = cmd.parent.acceptAll || cmd.parent.declineAll || ''
+    process.env.skipUserInputValue = cmd.parent.acceptAll || ''
     // runs the command
     require(path)(softmod,cmd)
 }
@@ -69,8 +69,9 @@ program
     .description('Builds the module or collection and will give the exports which can then be added to the host')
     .option('-b, --create-backup','the old json will be renamed to have .bak on the end of the name')
     .option('-o, --output-dir','the dir that the zips and jsons will be saved to relative to the active dir')
-    .option('-a, --build-all','builds all modules that are insatlled')
-    .option('-i, --version-increment <version>','increments the version number by X.Y.Z')
+    .option('-a, --all','builds all modules that are insatlled')
+    .option('-i, --version-increment [major|minor|patch]','increments the version number in a certain area, default patch')
+    .option('-I, --version-increment-all [major|minor|patch]','increments the version number in a certain area, for all modules, default patch')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/build'))
 
 // install command (used to install a scenario/module/collection/submodule)
@@ -132,12 +133,12 @@ program
 
 // program info
 program
-    .version('0.1.0')
+    .version('1.1.9')
     .usage('fsm <command> [options]')
     .option('-d, --no-download','will not download any files')
     .option('-f, --force','forces the prossess to run when it would cancel normally')
-    .option('-y, --yes-all','skips all prompts, accepting all')
-    .option('-n, --no-all','skips all prompts, accepting only to contuine install')
+    .option('-y, --accept-all','skips all prompts, accepting all')
+    .option('-n, --decline-all','skips all prompts, accepting only to contuine install')
     .option('-v, --module-version <version>','defines which version will be acted on (when aplicaible)')
     .description('A cli to download and install softmods for a factorio scenario')
 

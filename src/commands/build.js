@@ -55,7 +55,7 @@ module.exports = async (softmod,cmd) => {
     try {
         const outputDir = cmd.outputDir || '.'+config.outputDir
         const tasks = {}
-        if (cmd.buildAll) {
+        if (cmd.all) {
             const modules = await getModules(rootDir+config.modulesDir)
             await Promise.all(Object.values(modules).map(softmod => getBuildTasks(softmod,tasks)))
         } else await getBuildTasks(softmod,tasks)
@@ -67,16 +67,18 @@ module.exports = async (softmod,cmd) => {
         if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
         if (!userInput) throw new Error('canceled')
         await fs.ensureDir(outputDir)
+        // incremments the version numbers
+        if (cmd.versionIncrement && !cmd.versionIncrementAll) {
+            consoleLog('status','Incrementing version numbers')
+            await softmod.incrementVeresion(cmd.versionIncrement == true ? 'patch' : cmd.versionIncrement,true,cmd.createBackup)
+        } else if (cmd.versionIncrementAll) {
+            consoleLog('status','Incrementing version numbers')
+            await Promise.all(Object.values(tasks).map(task => task.incrementVeresion(cmd.versionIncrementAll == true ? 'patch' : cmd.versionIncrementAll,true,cmd.createBackup)))
+        }
         // exports the json files
         consoleLog('status','Building module json files')
         await Promise.all(Object.values(tasks).map(async task => {
-            await task.build(true,cmd.createBackup)
-            await fs.copy(task.downloadPath+config.jsonFile,`${outputDir}/${task.name}_${task.version}.json`)
-            consoleLog('info','Exported json for: '+task.versionName)
-        }))
-        consoleLog('status','Building module json files')
-        await Promise.all(Object.values(tasks).map(async task => {
-            await task.build(true,cmd.createBackup)
+            await task.build(true,cmd.createBackup,true)
             await fs.copy(task.downloadPath+config.jsonFile,`${outputDir}/${task.name}_${task.version}.json`)
             consoleLog('info','Exported json for: '+task.versionName)
         }))
