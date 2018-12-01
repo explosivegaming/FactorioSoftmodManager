@@ -376,7 +376,9 @@ class Softmod {
     }
 
     incrementVeresion(versionType,saveToJson=false,bak=false) {
+        const oldName = this.versionName
         this.version = semver.inc(this.version,versionType)
+        consoleLog('info',oldName+' => '+this.versionName)
         if (saveToJson && this.json) {
             this.json.version = this.version 
             return this.writeJson(bak)
