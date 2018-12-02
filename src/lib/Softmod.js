@@ -61,19 +61,20 @@ class Softmod {
     async copyLocale() {
         function recur(dir,dirName) {
             return new Promise((resolve,reject) => {
-                fs.readdir(dir,(err,files) => {
+                fs.readdir(dir,async (err,files) => {
                     if (err) reject(err)
                     else {
-                        files.forEach(file => {
+                        for (let i=0;i<files.length;i++) {
+                            const file = files[i]
                             if (fs.statSync(`${dir}/${file}`).isDirectory() && fs.existsSync(`${dir}/${file}/${config.jsonFile}`)) recur.apply(this,[`${dir}/${file}`,file])
                             else {
                                 if (file.includes('.cfg')) {
                                     let lang = dirName
                                     if (dirName == config.localeDir) lang = file.replace('.cfg','')
-                                    fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                    await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
                                 }
                             }
-                        })
+                        }
                         resolve()
                     }
                 })
@@ -82,11 +83,12 @@ class Softmod {
             })
         }
         await recur.apply(this,[this.downloadPath+config.localeDir,config.localeDir])
-        await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
+        // idk what this was for as modules copy they own locales apon installing
+        /*await Promise.all(fs.readdirSync(this.downloadPath).map(file => {
             if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
                 return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
             }
-        })).catch(err => consoleLog('error',err))
+        })).catch(err => consoleLog('error',err))*/
     }
 
     async build(save=true,bak=false,skipRead=false) {
@@ -113,7 +115,13 @@ class Softmod {
         consoleLog('start','Uninstalling softmod: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             await this.readJson(true)
-            if (recur) await Promise.all(this.dependencies.map(softmod => softmod.uninstall(true,skip)).concat(this.submodules.map(softmod => softmod.uninstall(true,skip))))
+            let promises = []
+            if (recur) {
+                promises=promises.concat(this.dependencies.map(softmod => softmod.uninstall(true,skip)))
+                .concat(this.submodules.map(softmod => softmod.uninstall(true,skip)))
+                if (this.collection) promises.push(this.collection.uninstall(false,skip))
+            }
+            await Promise.all(promises)
             fs.removeSync(this.downloadPath)
             consoleLog('success','Uninstalled softmod: '+this.versionName)
             resolve()
@@ -121,7 +129,7 @@ class Softmod {
     }
 
     // installs the softmod
-    install(skip=[]) {
+    install(recur=true,skip=[]) {
         // if it is already installed then it is not reinstalled unless force is used
         if (this.installed && !process.env.useForce) return
         // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
@@ -134,8 +142,11 @@ class Softmod {
             if (!this.location) reject('No location for module download')
             else {
                 await this.downloadPackage()
-                this.copyLocale()
-                await Promise.all(this.dependencies.map(softmod => softmod.install(skip)).concat(this.submodules.map(softmod => softmod.install(skip))))
+                this.copyLocale() // causes some bugs for some reason
+                let promises = this.dependencies.map(softmod => softmod.install(true,skip))
+                if (this.collection) promises.push(this.collection.install(false,skip))
+                if (recur) promises = promises.concat(this.submodules.map(softmod => softmod.install(true,skip)))
+                await Promise.all(promises)
                 consoleLog('success','Installed softmod: '+this.versionName)
                 resolve()
             }
@@ -158,10 +169,6 @@ class Softmod {
                         .on('error',err => reject('Pipe Error: '+err))
                         .on('finish',async () => {
                             if (this.json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this.json)
-                            if (this.parent) {
-                                const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
-                                await Softmod.saveJson(parentName,parentVersion,this.downloadPath+'/..'+config.jsonFile)
-                            }
                             consoleLog('info','Downloaded package for: '+this.versionName)
                             resolve()
                         })
@@ -289,7 +296,7 @@ class Softmod {
             consoleLog('info',`Detected collection: ${softmod.versionName} for ${this.versionName}`)
             this.parent = `${parentName}@${softmod.version}`
             if (saveToJson && this.json) this.json.collection = this.parent
-            return this.parent
+            return this.collection
         }
     }
 
@@ -400,6 +407,14 @@ class Softmod {
 
     get versionName() {
         return `${this.name}@${this.version ? this.version : this.versionQurey}`
+    }
+
+    get collection() {
+        if (this.parent) {
+            const [parentName,parentVersion] = Softmod.extractVersionFromName(this.parent,true)
+            const parent = new Softmod(parentName,parentVersion)
+            return parent
+        }
     }
 
     get dependencies() {

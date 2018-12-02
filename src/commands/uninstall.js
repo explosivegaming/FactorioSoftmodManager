@@ -17,13 +17,14 @@ async function addSoftmodToDependencies(submod,dependencies,checked,forceRecur) 
     if (!checked.includes(submod.name)) checked.push(submod.name)
 }
 
-async function getDependencies(softmod,dependencies=[],checked=[]) {
+async function getDependencies(softmod,dependencies=[],checked=[softmod.name]) {
     await softmod.readJson(true)
     const subs = softmod.submodules
     subs.forEach(submod => {if (submod.installed) dependencies.push(submod.name)})
     for (let i = 0;i < subs.length;i++) await addSoftmodToDependencies(subs[i],dependencies,checked,true)
     const deps = softmod.dependencies
     for (let i = 0;i < deps.length;i++) await addSoftmodToDependencies(deps[i],dependencies,checked)
+    if (softmod.collection && !dependencies.includes(softmod.collection.name)) await dependencies.push(softmod.collection.name)
     consoleLog('info','Checked dependencies for: '+softmod.name)
     return dependencies
 }
@@ -44,7 +45,7 @@ function getInstalled() {
         fs.readdir(rootDir+config.modulesDir,async (err,files) => {
             await Promise.all(files.map(file => {
                 if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
-                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`)
+                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`,{throws:false})
                     if (softmodJson) {
                         const softmod = Softmod.fromJson(softmodJson)
                         return addSoftmodToInstalled(softmod,installed)
@@ -84,11 +85,14 @@ module.exports = async (softmod,cmd) => {
             const installed = await getInstalled()
             Object.values(installed).filter(submod => !dependencies.includes(submod.name) && submod.name != softmod.name).forEach(submod => {
                 submod.dependencies.forEach(dep => {
-                    if (dependencies.includes(dep.name) && !skip.includes(dep.name)) skip.push(dep.name)
+                    if ((dependencies.includes(dep.name) || dep.name == submod.collection.name) && !skip.includes(dep.name)) {
+                        skip.push(dep.name)
+                        const depParent = installed[dep.name].collection
+                        if (depParent && dependencies.includes(depParent.name)) skip.push(depParent.name)
+                    }
                 })
             })
             consoleLog('input','The following modules will be uninstalled: ')
-            let output = []
             console.log(dependencies.filter(value => !skip.includes(value)).join(', '))
             let userInput = true
             if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the uninstall: (yes)',{default:'yes'})

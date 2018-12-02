@@ -4,6 +4,7 @@ const fs = require('fs-extra')
 const config = require('./config')
 const consoleLog = require('./lib/consoleLog')
 
+// a common function used to auto format the dir and find the softmod which is being used
 async function softmodDirVal(name='.',dir='.',cmd,path) {
     // if the name is a path then it is used instead of dir
     if (name.includes('/') || name.includes('\\') && dir == '.') {dir = name;name='.'}
@@ -39,13 +40,13 @@ async function softmodDirVal(name='.',dir='.',cmd,path) {
     require(path)(softmod,cmd)
 }
 
-// info command (displays info on a module/collection/scenario/submodule)
+// displays info about a softmod; either by downloading the json or by reading the installed json
 program
     .command('info [name] [dir]')
     .description('View info on a module, collection or secenario')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/info'))
 
-// init command (creats the json and auto links submodules)
+// used to create a new softmod where you want to make a json file
 program
     .command('init [dir]')
     .description('Init a new module, collection or secanrio')
@@ -63,6 +64,7 @@ program
         require('./commands/init')(cmd)
     })
 
+// builds the json files for the modules and then moves them to exports; also zips the modules and moves them to the exports
 program
     .command('build [name] [dir]')
     .alias('b')
@@ -84,6 +86,7 @@ program
     .option('-j, --keep-jsons','does not remove json dir after download')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/install'))
 
+// uninstalls the files for a sub module and any dependies no longer required
 program
     .command('uninstall [name] [dir]')
     .alias('uni')
@@ -93,15 +96,6 @@ program
     .option('-a, --all','remove all fsm files from this scenario')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/uninstall'))
 
-// update command (same as init but only updates modules/submodules)
-program
-    .command('update [dir]')
-    .alias('up')
-    .description('Updates modules, submodules and collections to all have the same information')
-    .action((dir='.',cmd) => {
-        process.env.dir = dir
-        require('./commands/update')(cmd)
-    })
 
 // host command (starts a host server, in furture this will connect to a master to allow more than a single host)
 program
@@ -118,6 +112,7 @@ program
         require('./commands/host')(cmd)
     })
 
+// just a command that is used to test certain parts of the code without forcing a path; no constant function
 program
     .command('test [dir]')
     .description('a test command')

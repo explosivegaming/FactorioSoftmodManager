@@ -59,6 +59,7 @@ async function getSkips(softmod,skip,noSkip) {
     for (let i = 0;i < subs.length;i++) await skipPromt(subs[i],skip,noSkip,true)
     const deps = softmod.dependencies
     for (let i = 0;i < deps.length;i++) await skipPromt(deps[i],skip,noSkip)
+    if (softmod.collection && !noSkip.includes(softmod.collection.name)) await noSkip.push(softmod.collection.name)
     consoleLog('info','Checked dependencies for: '+softmod.name)
 }
 
@@ -78,7 +79,7 @@ function generateIndex() {
         fs.readdir(rootDir+config.modulesDir,async (err,files) => {
             await Promise.all(files.map(file => {
                 if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
-                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`)
+                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`,{throws:false})
                     if (softmodJson) {
                         const softmod = Softmod.fromJson(softmodJson)
                         return addSoftmodToIndex(softmod,index)
@@ -164,7 +165,7 @@ module.exports = async (softmod,cmd) => {
             if (!userInput) throw new Error('canceled')
             // starts the install of the first module
             consoleLog('status','Installing modules.')
-            await softmod.install(skip)
+            await softmod.install(true,skip)
             consoleLog('status','Generating index file.')
             const index = await generateIndex()
             saveIndex(index)
