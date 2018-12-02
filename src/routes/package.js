@@ -1,7 +1,7 @@
 const Express = require('express')
 const Router = Express.Router()
 const {ModuleJson} = require('./../database')
-const Version = require('../lib/version')
+const semver = require('semver')
 const Op = require('sequelize').Op
 
 const removeE = {
@@ -80,7 +80,7 @@ Router.get('/:name',(req,res) => {
         if (!results || results.length == 0) {res.status(404);res.send('Error 404 Not Found: Could not find any versions within range.'); return}
         const alterantives = []
         for (let i = 0;i < results.length;i++) alterantives.push(results[i].version)
-        const latest = Version.max(alterantives)
+        const latest = semver.maxSatisfying(alterantives,'*')
         const latest_index = alterantives.indexOf(latest)
         const latest_json = results[latest_index]
         res.json({latest:latest,alterantives:alterantives.sort(),json:latest_json.json})
