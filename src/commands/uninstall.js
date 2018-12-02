@@ -31,7 +31,7 @@ async function getDependencies(softmod,dependencies=[],checked=[softmod.name]) {
 
 async function addSoftmodToInstalled(softmod,installed) {
     if (Object.keys(installed).includes(softmod.name)) return
-    await softmod.updateFromJson(true)
+    await softmod.readJson(true)
     if (softmod.installed) {
         consoleLog('info',`${softmod.name} is currently installed`)
         installed[softmod.name] = softmod
@@ -53,6 +53,27 @@ function getInstalled() {
                 }
             }))
             resolve(installed)
+        })
+    }).catch(err => consoleLog('error',err))
+}
+
+function cleanIndex(removedModules) {
+    return new Promise((resolve,reject) => {
+        fs.readFile(rootDir+config.modulesDir+config.modulesIndex,async (err,data) => {
+            if (err) reject(err)
+            else {
+                const newData = data
+                    .toString()
+                    .split('\n')
+                    .filter(line => {
+                        const match = line.match(/\[['"](.+?)["']\]/)
+                        if (match && removedModules.includes(match[1])) {
+                            consoleLog('info',`Removed ${match[1]} from the index`)
+                            return false
+                        } else return true
+                    })
+                fs.writeFile(rootDir+config.modulesDir+config.modulesIndex,newData.join('\n')).then(resolve)
+            }
         })
     }).catch(err => consoleLog('error',err))
 }
@@ -93,11 +114,15 @@ module.exports = async (softmod,cmd) => {
                 })
             })
             consoleLog('input','The following modules will be uninstalled: ')
-            console.log(dependencies.filter(value => !skip.includes(value)).join(', '))
+            const uninstallModules = dependencies.filter(value => !skip.includes(value))
+            uninstallModules.push(softmod.name)
+            console.log(uninstallModules.join(', '))
             let userInput = true
             if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the uninstall: (yes)',{default:'yes'})
             if (!userInput) throw new Error('canceled')
             await softmod.uninstall(true,skip)
+            consoleLog('status','Cleaning module index')
+            await cleanIndex(uninstallModules)
         }
         consoleLog('status','Command Finnished')
     } catch(err) {

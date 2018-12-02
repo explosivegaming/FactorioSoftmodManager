@@ -71,7 +71,11 @@ class Softmod {
                                 if (file.includes('.cfg')) {
                                     let lang = dirName
                                     if (dirName == config.localeDir) lang = file.replace('.cfg','')
-                                    await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                    try {
+                                        await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                    } catch (err) {
+                                        consoleLog('error',err)
+                                    }
                                 }
                             }
                         }
@@ -142,7 +146,7 @@ class Softmod {
             if (!this.location) reject('No location for module download')
             else {
                 await this.downloadPackage()
-                this.copyLocale() // causes some bugs for some reason
+                this.copyLocale() // causes some bugs for some reason, EBUSY
                 let promises = this.dependencies.map(softmod => softmod.install(true,skip))
                 if (this.collection) promises.push(this.collection.install(false,skip))
                 if (recur) promises = promises.concat(this.submodules.map(softmod => softmod.install(true,skip)))
@@ -168,7 +172,7 @@ class Softmod {
                         .pipe(unzipper.Extract({ path: this.downloadPath}))
                         .on('error',err => reject('Pipe Error: '+err))
                         .on('finish',async () => {
-                            if (this.json) fs.writeJSONSync(this.downloadPath+config.jsonFile,this.json)
+                            if (this.json) fs.writeJsonSync(this.downloadPath+config.jsonFile,this.json,{spaces:2})
                             consoleLog('info','Downloaded package for: '+this.versionName)
                             resolve()
                         })

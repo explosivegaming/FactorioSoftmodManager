@@ -167,6 +167,7 @@ module.exports = async (softmod,cmd) => {
             consoleLog('status','Installing modules.')
             await softmod.install(true,skip)
             consoleLog('status','Generating index file.')
+            await new Promise(resolve => setTimeout(resolve,10)) // bugs in the index generation with modules paths not existing
             const index = await generateIndex()
             saveIndex(index)
             if (!cmd.keepJsons) fs.remove(rootDir+config.jsonDir)
