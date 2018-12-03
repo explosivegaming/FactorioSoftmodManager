@@ -100,7 +100,7 @@ class Softmod {
         if (Softmod.installChache.includes(this.name)) return
         installChache.push(this.name)
         // makes sure that the json is loaded
-        if (!skipRead) await this.readJson(true,frea)
+        if (!skipRead) await this.readJson(true)
         consoleLog('start','Building json for: '+this.versionName)
         // awaits all actions on json
         await Promise.all([this.updateCollection(true),this.udpateProvides(true),this.updateRequires(true)])
@@ -284,9 +284,7 @@ class Softmod {
     }
 
     jsonValue(key) {
-        if (this.json) {
-            return this.json[key]
-        } else return this[key]
+        return this.json && this.json[key] || this[key]
     }
 
     async updateCollection(saveToJson=false) {

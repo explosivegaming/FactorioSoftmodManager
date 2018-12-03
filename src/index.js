@@ -17,8 +17,14 @@ async function softmodDirVal(name='.',dir='.',cmd,path) {
             const json = fs.readJSONSync(process.env.dir+config.jsonFile)
             if (json) softmod = Softmod.fromJson(json)
             else {
-                consoleLog('error','No softmod name supplied and no json found.')
-                return
+                const path = process.env.dir
+                const dirName = path.lastIndexOf('/') > 0 && path.substring(path.lastIndexOf('/')+1) || path.lastIndexOf('\\') > 0 && path.substring(path.lastIndexOf('\\')+1) || undefined
+                if (dirName) {
+                    consoleLog('error','No softmod name supplied and no json found. Using dir name as module name.')
+                    softmod = new Softmod(dirName,cmd.parent.modulesVersion ? cmd.parent.modulesVersion : softmodVersionQuery)
+                } else {
+                    return
+                }
             }
         }
     } else {
@@ -48,21 +54,14 @@ program
 
 // used to create a new softmod where you want to make a json file
 program
-    .command('init [dir]')
-    .description('Init a new module, collection or secanrio')
-    .option('-y, --yes-all','skips all prompts')
-    .option('-n, --module-name <name>','defines the name of this module')
-    .option('-t, --type <type>','defines the type of the module, Scenario|Collection|Module|Submodule')
-    .option('-v, --module-version <version>','defines the version of the module')
+    .command('init [name] [dir]')
+    .description('Init a new module, promts can be skiped with command line options')
     .option('-u, --url <url>','defines the url location for the module')
     .option('-a, --author <author>','defines the author for the module')
     .option('-l, --license <license>','defines the license type or location of the modules license')
     .option('-c, --contact <contact>','defines the contact method and/or location for this contact')
     .option('-k, --key-words <keyword>,[keyword]','defines a list of key words for the module',val => val.split(','))
-    .action((dir='.',cmd) => {
-        process.env.dir = dir
-        require('./commands/init')(cmd)
-    })
+    .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/init'))
 
 // builds the json files for the modules and then moves them to exports; also zips the modules and moves them to the exports
 program
