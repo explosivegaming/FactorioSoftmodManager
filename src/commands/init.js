@@ -1,6 +1,8 @@
 // require 
 const promptly = require('promptly')
+const fs = require('fs-extra')
 const consoleLog = require('../lib/consoleLog')
+const config = require('../config')
 
 async function getInput(softmod,cmd,inputName,jsonName=inputName,inputNameClean=jsonName,defaultValue='<blank>') {
     // gets a default value for this input
@@ -14,6 +16,7 @@ async function getInput(softmod,cmd,inputName,jsonName=inputName,inputNameClean=
 
 module.exports = async (softmod,cmd) => {
     try {
+        fs.ensureDir(softmod.downloadPath)
         await softmod.readJson(true)
         if (!softmod.json) softmod.json = {}
         if (!process.env.skipUserInput) {
@@ -30,6 +33,12 @@ module.exports = async (softmod,cmd) => {
         }
         consoleLog('status','Building json file')
         await softmod.build(true)
+        if (!fs.existsSync(softmod.downloadPath+config.luaFile)) {
+            consoleLog('info','Cloning boilerprint module code')
+            const installLocation = process.argv[1]+config.srcScenario+config.modulesDir
+            await fs.copy(installLocation+'/module-control.lua',softmod.downloadPath+config.luaFile)
+            
+        }
         consoleLog('status','Command Finnished')
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
