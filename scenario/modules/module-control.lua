@@ -1,7 +1,7 @@
---- Desction <get from json>
--- @module ThisModule@X.Y.Z
--- @author <get from json>
--- @license <get from json>
+--- BOILER_INIT${moduleDescription}
+-- @module BOILER_INIT${moduleName}
+-- @author BOILER_INIT${moduleAuthor}
+-- @license BOILER_INIT${moduleLicense}
 -- @alais ThisModule 
 
 -- Module Require

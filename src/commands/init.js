@@ -36,8 +36,21 @@ module.exports = async (softmod,cmd) => {
         if (!fs.existsSync(softmod.downloadPath+config.luaFile)) {
             consoleLog('info','Cloning boilerprint module code')
             const installLocation = process.argv[1]+config.srcScenario+config.modulesDir
-            await fs.copy(installLocation+'/module-control.lua',softmod.downloadPath+config.luaFile)
-            
+            // reads the boiler print and replaces BOILER_INIT tags
+            let promise
+            fs.readFile(installLocation+'/module-control.lua',(err,data) => {
+                if (err) consoleLog('error',err)
+                else {
+                    data = data.toString()
+                        .replace('BOILER_INIT${moduleDescription}',softmod.jsonValue('description'))
+                        .replace('BOILER_INIT${moduleName}',softmod.versionName)
+                        .replace('BOILER_INIT${moduleAuthor}',softmod.jsonValue('author'))
+                        .replace('BOILER_INIT${moduleLicense}',softmod.jsonValue('license'))
+                }
+                promise = fs.writeFile(softmod.downloadPath+config.luaFile,data)
+            })
+            await promise
+            //await fs.copy(installLocation+'/module-control.lua',softmod.downloadPath+config.luaFile)
         }
         consoleLog('status','Command Finnished')
     } catch(err) {
