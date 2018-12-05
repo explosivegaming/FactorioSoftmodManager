@@ -60,7 +60,7 @@ program
     .option('-a, --author <author>','defines the author for the module')
     .option('-l, --license <license>','defines the license type or location of the modules license')
     .option('-c, --contact <contact>','defines the contact method and/or location for this contact')
-    .option('-k, --key-words <keyword>,[keyword]','defines a list of key words for the module',val => val.split(','))
+    .option('-k, --key-words <keyword>,[keyword]','defines a list of key words for the module',val => val.split(',').map(s => s.trim()))
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/init'))
 
 // builds the json files for the modules and then moves them to exports; also zips the modules and moves them to the exports
