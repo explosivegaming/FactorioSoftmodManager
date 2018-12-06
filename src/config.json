@@ -3,7 +3,6 @@
     "jsonFile": "/softmod.json",
     "jsonDir": "/jsonDownloads",
     "outputDir": "/exports",
-	"database": "/../../fsm.db",
     "srcScenario": "/scenario",
     "localeExt": ".cfg",
     "localeDir": "/locale",
@@ -13,6 +12,7 @@
     "indexFooter": "}",
     "indexBody": "    ['${module_name}']='${module_path}',\n",
     "hostPort": 3001,
+    "hostIP": null,
     "removeLocaleAfterInstall": false,
     "cleanModules": true,
     "serverURL": "http://explosivegaming.nl:3001"

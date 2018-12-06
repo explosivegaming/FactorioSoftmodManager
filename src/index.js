@@ -100,14 +100,14 @@ program
 program
     .command('host [dir]')
     .alias('h')
-    .description('Sets up a web api endpoint on this machine; a place holder for allowing uploading of modules')
+    .description('Sets up a web api; dir will become the zip and database store')
     .option('-p, --port','port to host server on')
-    .option('-u, --update','loads new modules from the modules folder into the database')
-    .option('-i, --use-index','loads new modules from the json dir')
-    .option('-w, --watch [interville]','watchs the selected dir for new json files and adds them to the database, then removes them')
-    .option('-d, --dev','allows use of /raw route for dev purposes')
+    .option('-a, --address','address to host server on')
+    .option('-w, --watch [interval]','watchs the imports dir for new jsons and zip files')
     .action((dir='.',cmd) => {
         process.env.dir = dir
+        cmd.port = cmd.port || config.hostPort
+        cmd.address = cmd.address || config.hostIP
         require('./commands/host')(cmd)
     })
 

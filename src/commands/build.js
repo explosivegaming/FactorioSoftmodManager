@@ -64,7 +64,7 @@ module.exports = async (softmod,cmd) => {
         consoleLog('input','The following modules will be build: ')
         console.log(Object.keys(tasks).join(', '))
         let userInput = true
-        if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the install: (yes)',{default:'yes'})
+        if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the build: (yes)',{default:'yes'})
         if (!userInput) throw new Error('canceled')
         await fs.ensureDir(outputDir)
         // incremments the version numbers

@@ -1,13 +1,4 @@
-// require
-const config = require('../config.json')
-const app = require('../app')
-const fs = require('fs')
-const valid = require('../lib/valid')
-const reader = require('../lib/reader')
-const database = require('../database')
-const chalk = require('chalk')
-
-function moduleTemplate(name,version,json) {
+/*function moduleTemplate(name,version,json) {
     const version_parts = version.split('.')
     return {
         name: name,
@@ -152,4 +143,87 @@ module.exports = (options) => {
     app.listen(port, () => {
         console.log('Server started on: '+port)
     })
+}*/
+
+const config = require('../config.json')
+const fs = require('fs-extra')
+const valid = require('../lib/valid')
+const reader = require('../lib/reader')
+const database = require('../lib/database.js')
+const semver = require('semver')
+
+const consoleLog = require('../lib/consoleLog')
+const Softmod = require('../lib/Softmod')
+const rootDir = process.env.dir
+
+const Express = require('express')
+const app = Express()
+
+//app.use('/package',require('../routes/package'))
+
+function convertJson(json) {
+    const softmod = Softmod.fromJson(json)
+    const version = semver.coerce(softmod.version)
+    const keywords = softmod.jsonValue('keywords') || []
+    return {
+        details: {
+            name:softmod.name,
+            author: softmod.jsonValue('author'),
+            description: softmod.jsonValue('description'),
+            license: softmod.jsonValue('license'),
+            keywords: keywords.join(';')
+        },
+        version: {
+            name:softmod.versionName,
+            json:json,
+            versionMajor: version.major,
+            versionMinor: version.minor,
+            versionPatch: version.patch
+        }
+    }
+}
+
+function addWatch(interval=500) {
+    consoleLog('status','Starting watch with interval: '+interval)
+    const importsDir = rootDir+'/imports'
+    let files = []
+    fs.watch(importsDir,(event,file) => {
+        if (event == 'rename' && fs.existsSync(`${importsDir}/${file}`)) {
+            if (file.endsWith('.json')) {
+                // the file is a json file
+                fs.readJSON(`${importsDir}/${file}`)
+                .catch(err => consoleLog('error',err))
+                .then(json => {
+                    const converted = convertJson(json)
+                    database.ModuleInfo.insertOrUpdate(converted.details).then(created => {
+                        if (created) consoleLog('info','Created new softmod entry: '+converted.details.name)
+                        database.ModuleVersion.create(converted.version).then(entry => {
+                            console.log('test')
+                            entry.setSoftmod(converted.details).then(() => {
+                                consoleLog('info','Created new version entry: '+converted.version.name)
+                            })
+                        }).catch(err => consoleLog('error',err))
+                    })
+                }).catch(err => consoleLog('error',err))
+                fs.remove(`${importsDir}/${file}`)
+            }
+        }
+    })
+}
+
+module.exports = async cmd => {
+    consoleLog('Checking file structure and database')
+    process.env.databasePath = rootDir+'/fsm.db'
+    fs.ensureDir(rootDir+'/zips')
+    fs.ensureDir(rootDir+'/jsons')
+    fs.ensureDir(rootDir+'/imports')
+    console.log(cmd.port,cmd.address,rootDir)
+    if (await database.authenticate()) {
+        if (cmd.watch) await addWatch(typeof cmd.watch != 'boolean' ? cmd.watch : undefined)
+        consoleLog('status','Starting web server')
+        app.listen(cmd.port,cmd.address, () => {
+            consoleLog('start','Server started on: '+cmd.port)
+        })
+        consoleLog('status','Command Finnished')
+    }
 }

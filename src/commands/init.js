@@ -30,9 +30,10 @@ module.exports = async (softmod,cmd) => {
             await getInput(softmod,cmd,'license')
             await getInput(softmod,cmd,'url','location','download url')
             await getInput(softmod,cmd,'keywords')
+            softmod.json.keywords = softmod.json.keywords.split(',').map(s => s.trim())
         }
         consoleLog('status','Building json file')
-        await softmod.build(true)
+        await softmod.build(true,false,true)
         if (!fs.existsSync(softmod.downloadPath+config.luaFile)) {
             consoleLog('info','Cloning boilerprint module code')
             const installLocation = process.argv[1]+config.srcScenario+config.modulesDir

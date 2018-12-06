@@ -73,6 +73,7 @@ class Softmod {
                                     if (dirName == config.localeDir) lang = file.replace('.cfg','')
                                     try {
                                         await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                        .catch(err => consoleLog('error',err))
                                     } catch (err) {
                                         consoleLog('error',err)
                                     }
