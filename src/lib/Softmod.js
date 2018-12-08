@@ -322,6 +322,10 @@ class Softmod {
             const softmod = new Softmod(parentName)
             await softmod.readJson(true)
             consoleLog('info',`Detected collection: ${softmod.versionName} for ${this.versionName}`)
+            if (!this.name.startsWith(parentName)) {
+                consoleLog('warning',`Softmod "${softmod.versionName}" did not include its parent in its name; new name: "${parentName}.${this.name}"`)
+                this.name = `${parentName}.${this.name}`
+            }
             this.parent = `${parentName}@${softmod.version}`
             if (saveToJson && this.json) this.json.collection = this.parent
             return this.collection
