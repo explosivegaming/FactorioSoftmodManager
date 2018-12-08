@@ -216,16 +216,17 @@ class Softmod {
             requestDatabase.get(`/softmod/${this.name}/versions?v=${this.versionQurey}`,{json:true},(err,res,body) => {
                 if (err) reject(err)
                 else {
-                    if (!body.latest) {
+                    const lastest = body[this.name+'@latest']
+                    if (!lastest) {
                         reject('Could not download json for: '+this.versionName)
                         return
                     }
-                    consoleLog('info',`Downloaded json for: ${this.name}@${body.latest}`)
-                    const downloadPath = `${rootDir+config.jsonDir}/${this.name}_${body.latest}.json`
-                    Softmod.jsonChache[`${this.name}@${body.latest}`] = downloadPath
+                    consoleLog('info',`Downloaded json for: ${this.name}@${lastest.version}`)
+                    const downloadPath = `${rootDir+config.jsonDir}/${this.name}_${lastest.version}.json`
+                    Softmod.jsonChache[`${this.name}@${lastest.version}`] = downloadPath
                     Softmod.jsonChache[`${this.name}@${this.versionQurey}`] = downloadPath
-                    fs.writeJSONSync(downloadPath,body.json)
-                    this.json = body.json
+                    fs.writeJSONSync(downloadPath,lastest)
+                    this.json = lastest
                     resolve(downloadPath)
                 }
             })

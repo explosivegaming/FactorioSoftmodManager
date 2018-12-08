@@ -29,7 +29,7 @@ router.get('/:softmodName/versions',(req,res) => {
                 if (!latest) {
                     res.status(404).send('No versions found in range: '+query)
                 } else {
-                    softmodData[`${softmodName}@latest`]=versions[rawVersions.indexOf(latest)]
+                    softmodData[`${softmodName}@latest`]=versions[rawVersions.indexOf(latest)].json
                     const options = rawVersions.filter(version => semver.satisfies(version,query))
                     options.forEach(version => {
                         softmodData[`${softmodName}@${version}`]=versions[rawVersions.indexOf(version)].json
