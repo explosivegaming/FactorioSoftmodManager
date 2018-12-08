@@ -9,7 +9,8 @@ const rootDir = process.env.dir
 const Express = require('express')
 const app = Express()
 
-//app.use('/package',require('../routes/package'))
+app.use('/softmod',require('../routes/softmod'))
+app.use('/archive',require('../routes/archive'))
 
 function convertJson(json) {
     const softmod = Softmod.fromJson(json)
@@ -71,8 +72,8 @@ function addWatch(interval=500) {
 
 module.exports = async cmd => {
     consoleLog('status','Checking file structure and database')
-    fs.ensureDir(rootDir+'/archive')
     fs.ensureDir(rootDir+'/imports')
+    fs.ensureDir(rootDir+'/archive')
     if (await database.authenticate()) {
         if (cmd.watch) await addWatch(typeof cmd.watch != 'boolean' ? cmd.watch : undefined)
         consoleLog('status','Starting web server')

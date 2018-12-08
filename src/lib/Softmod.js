@@ -47,10 +47,10 @@ class Softmod {
         let softmodName = name
         let softmodVersion = '*'
         // allows either @ or _ to be a seperator
-        if (name.lastIndexOf('_') > 0) {
+        if (name.includes('_')) {
             softmodName = name.substring(0,name.lastIndexOf('_'))
             softmodVersion = name.substring(name.lastIndexOf('_')+1)
-        } else if (name.lastIndexOf('@') > 0) {
+        } else if (name.includes('@')) {
             softmodName = name.substring(0,name.lastIndexOf('@'))
             softmodVersion = name.substring(name.lastIndexOf('@')+1)
         }
@@ -165,7 +165,9 @@ class Softmod {
                 const zipPath = `${this.downloadPath}/${this.name}.zip`
                 try {
                     await fs.emptyDir(this.downloadPath)
-                    request(this.location)
+                    let url = this.location
+                    if (url == 'FSM_ARCHIVE') url = `${config.serverURL}/archive/${this.name}_${this.version}`
+                    request(url)
                     .on('error',err => reject('Request Error: '+err))
                     .pipe(fs.createWriteStream(zipPath))
                     .on('finish',() => {
@@ -211,7 +213,7 @@ class Softmod {
         return new Promise(async (resolve,reject) => {
             await fs.ensureDir(rootDir+config.jsonDir)
             // downloads json from database api and returns file path
-            requestDatabase.get(`/package/${this.name}?version=${this.versionQurey}`,{json:true},(err,res,body) => {
+            requestDatabase.get(`/softmod/${this.name}/versions?v=${this.versionQurey}`,{json:true},(err,res,body) => {
                 if (err) reject(err)
                 else {
                     if (!body.latest) {

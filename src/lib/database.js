@@ -23,11 +23,6 @@ const Softmods = sequelize.define('softmods',{
     description: Sequelize.STRING,
     license: Sequelize.STRING,
     keywords: Sequelize.STRING // mysql cant hanndle arrays using .join(';') and .split(';')
-},{
-    name: {
-        singular: 'Softmod',
-        plural: 'Softmods'
-    }
 })
 
 const Versions = sequelize.define('versions',{
@@ -35,19 +30,11 @@ const Versions = sequelize.define('versions',{
         type:Sequelize.STRING,
         unique:true
     }, // this will include a version tag so this is different to ModuleInfo.name
-    json: Sequelize.JSON,
-    versionMajor: Sequelize.INTEGER,
-    versionMinor: Sequelize.INTEGER,
-    versionPatch: Sequelize.INTEGER
-},{
-    name: {
-        singular: 'Version',
-        plural: 'Versions'
-    }
+    json: Sequelize.JSON
 })
 
-Versions.softmod = Versions.belongsTo(Softmods)
-Softmods.versions = Softmods.hasMany(Versions)
+Versions.softmod = Versions.belongsTo(Softmods,{as:'Softmod',foreignKey:'softmodID'})
+Softmods.versions = Softmods.hasMany(Versions,{as:'Versions',foreignKey:'softmodID'})
 
 function authenticate() {
     consoleLog('start','Syncing with database')

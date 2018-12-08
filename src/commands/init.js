@@ -28,7 +28,7 @@ module.exports = async (softmod,cmd) => {
             await getInput(softmod,cmd,'author')
             await getInput(softmod,cmd,'contact')
             await getInput(softmod,cmd,'license')
-            await getInput(softmod,cmd,'url','location','download url')
+            await getInput(softmod,cmd,'url','location','download url','FSM_ARCHIVE')
             await getInput(softmod,cmd,'keywords')
             softmod.json.keywords = softmod.json.keywords.split(',').map(s => s.trim())
         }
