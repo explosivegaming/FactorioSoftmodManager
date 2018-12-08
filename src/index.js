@@ -106,6 +106,7 @@ program
     .option('-w, --watch [interval]','watchs the imports dir for new jsons and zip files')
     .action((dir='.',cmd) => {
         process.env.dir = dir
+        process.env.databasePath = dir+'/fsm.db'
         cmd.port = cmd.port || config.hostPort
         cmd.address = cmd.address || config.hostIP
         require('./commands/host')(cmd)
@@ -117,12 +118,18 @@ program
     .description('a test command')
     .action(async (dir='.',cmd) => {
         process.env.dir = dir
+        process.env.databasePath = dir+'/fsm.db'
         process.env.download = true
-        const Softmod = require('./lib/Softmod')
-        const softmod = new Softmod('ExpGamingCore')
-        await softmod.updateFromJson()
-        console.log(softmod)
-        console.log(softmod.submodules)
+        const database = require('./lib/database')
+        database.Softmods.findOne({
+            where: {
+                name: 'test'
+            }
+        }).then(softmod => {
+            softmod.getVersions().then(versions => {
+                versions.forEach(version => console.log(version.name))
+            })
+        })
     })
 
 // program info

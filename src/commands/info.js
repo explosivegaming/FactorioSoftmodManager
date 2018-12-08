@@ -38,7 +38,7 @@ module.exports = async (softmod,cmd) => {
     const reqDependencies = []
     const submodules = softmod.submodules
     consoleLog('info','Finding submodules')
-    await Promise.all(submodules.map(submod => submod.updateFromJson())) // will never download as it is loaded from the json
+    await Promise.all(submodules.map(submod => submod.updateFromJson())) // may download files, depends on download settings
     // adds submodule dependencies to the overall dependencies array
     submodules.forEach(submod => {
         consoleLog('info','Added '+submod.name)

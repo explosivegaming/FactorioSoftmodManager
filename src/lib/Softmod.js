@@ -31,7 +31,7 @@ class Softmod {
     static fromJson(json,nameOverride) {
         const softmod = new Softmod(nameOverride ? nameOverride : json.name,json.version)
         softmod.json = json
-        softmod.updateFromJson()
+        softmod.updateFromJsonSync()
         return softmod
     }
 
@@ -84,7 +84,7 @@ class Softmod {
                     }
                 })
             }).catch(err => {
-                if (!err.message.includes('ENOENT')) consoleLog('error',err)
+                if (!err.code == 'ENOENT') consoleLog('error',err)
             })
         }
         await recur.apply(this,[this.downloadPath+config.localeDir,config.localeDir])
@@ -230,13 +230,15 @@ class Softmod {
         }).catch(err => consoleLog('error',err))
     }
 
-    async readJson(update) {
-        const json = fs.readJSONSync(this.downloadPath+config.jsonFile,{throws:false})
-        if (json && update) {
-            this.json = json
-            await this.updateFromJson()
-        }
-        return json
+    readJson(update) {
+        return fs.readJSON(this.downloadPath+config.jsonFile,{throws:false}).then(json => {
+            if (json && update) {
+                this.json = json
+                this.updateFromJsonSync()
+            }
+        }).catch(err => {
+            if (!err.code == 'ENOENT') consoleLog('error',err)
+        })
     }
 
     writeJson(bak=false) {
@@ -256,6 +258,8 @@ class Softmod {
         })
     }
 
+    // get json will download the json file if download is allowed; if download fails or is disabled then it will read the json file
+    // it may also read the json from the download chache first
     async getJson() {
         if (!this.json) {
             let jsonFile = Softmod.jsonChache[this.versionName]
@@ -268,6 +272,24 @@ class Softmod {
 
     async updateFromJson() {
         const json = await this.getJson()
+        if (!json || !json.version) return this
+        this.version=semver.clean(json.version)
+        this.location=json.location
+        this.parent=json.collection
+        this.requires=json.dependencies || json.modules || {}
+        this.provides=json.submodules || {}
+        // this is some migration code to remove objects from submodules
+        for (let key in this.provides) {
+            if (typeof this.provides[key] == 'object') {
+                this.provides[`${this.name}.${key}`]=this.provides[key].version
+                delete this.provides[key]
+            }
+        }
+        return this
+    }
+
+    updateFromJsonSync() {
+        const json = this.json
         if (!json || !json.version) return this
         this.version=semver.clean(json.version)
         this.location=json.location

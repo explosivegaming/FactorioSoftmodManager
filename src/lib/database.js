@@ -1,5 +1,4 @@
 const Sequelize = require('sequelize')
-const config = require('../config.json')
 const consoleLog = require('./consoleLog')
 
 // look into replication.read and replication.write
@@ -24,6 +23,11 @@ const Softmods = sequelize.define('softmods',{
     description: Sequelize.STRING,
     license: Sequelize.STRING,
     keywords: Sequelize.STRING // mysql cant hanndle arrays using .join(';') and .split(';')
+},{
+    name: {
+        singular: 'Softmod',
+        plural: 'Softmods'
+    }
 })
 
 const Versions = sequelize.define('versions',{
@@ -35,6 +39,11 @@ const Versions = sequelize.define('versions',{
     versionMajor: Sequelize.INTEGER,
     versionMinor: Sequelize.INTEGER,
     versionPatch: Sequelize.INTEGER
+},{
+    name: {
+        singular: 'Version',
+        plural: 'Versions'
+    }
 })
 
 Versions.softmod = Versions.belongsTo(Softmods)
@@ -57,7 +66,7 @@ function authenticate() {
 }
 
 module.exports = {
-    database: sequelize,
+    rawDatabase: sequelize,
     authenticate: authenticate,
     Versions: Versions,
     Softmods: Softmods
