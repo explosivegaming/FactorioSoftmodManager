@@ -4,13 +4,13 @@ const fs = require('fs-extra')
 const consoleLog = require('../lib/consoleLog')
 const config = require('../config')
 
-async function getInput(softmod,cmd,inputName,jsonName=inputName,inputNameClean=jsonName,defaultValue='<blank>') {
+async function getInput(softmod,cmd,inputName,jsonName=inputName,inputNameClean=jsonName,defaultValue) {
     // gets a default value for this input
     let defaultInput = cmd[inputName] || softmod.jsonValue(jsonName) || defaultValue
     if (typeof defaultInput === 'object') defaultInput=Object.values(defaultInput).join(',')
     // gets user input
     if (!cmd[inputName]) {
-        softmod.json[jsonName] = await promptly.prompt(`Module ${inputNameClean}: (${defaultInput}) `,{trim:false,default:defaultInput})
+        softmod.json[jsonName] = await promptly.prompt(`Module ${inputNameClean}: (${defaultInput ? defaultInput : '<blank>'}) `,{trim:false,default:defaultInput})
     } else softmod.json[jsonName] = defaultInput
 }
 

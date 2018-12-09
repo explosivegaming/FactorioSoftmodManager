@@ -38,7 +38,7 @@ function addWatch(interval=500) {
     consoleLog('status','Starting watch with interval: '+interval)
     const importsDir = rootDir+'/imports'
     fs.watch(importsDir,(event,file) => {
-        if (event == 'rename' && fs.existsSync(`${importsDir}/${file}`)) {
+        if (file && event == 'rename' && fs.existsSync(`${importsDir}/${file}`)) {
             if (file.endsWith('.json')) {
                 // the file is a json file
                 fs.readJSON(`${importsDir}/${file}`)

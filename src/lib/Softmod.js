@@ -13,10 +13,10 @@ const rootDir = process.env.dir
 const jsonChache = {}
 const installChache = []
 class Softmod {
-    constructor(name,versionQurey='*') {
+    constructor(name,versionQurey='*',isScenario=false) {
         this.name = name
         this.versionQurey = versionQurey
-        this.downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
+        this.isScenario = isScenario // this will cause the download path to be made
     }
 
     static get jsonChache() {
@@ -59,6 +59,7 @@ class Softmod {
     }
 
     async copyLocale() {
+        if (this.isScenario) return
         function recur(dir,dirName) {
             return new Promise((resolve,reject) => {
                 fs.readdir(dir,async (err,files) => {
@@ -97,6 +98,7 @@ class Softmod {
     }
 
     async build(save=true,bak=false,skipRead=false) {
+        if (this.isScenario) return
         // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
         if (Softmod.installChache.includes(this.name)) return
         installChache.push(this.name)
@@ -127,7 +129,7 @@ class Softmod {
                 if (this.collection) promises.push(this.collection.uninstall(false,skip))
             }
             await Promise.all(promises)
-            fs.removeSync(this.downloadPath)
+            if (!this.isScenario) fs.removeSync(this.downloadPath)
             consoleLog('success','Uninstalled softmod: '+this.versionName)
             resolve()
         }).catch(err => consoleLog('error',err))
@@ -159,6 +161,7 @@ class Softmod {
     }
 
     downloadPackage() {
+        if (this.isScenario) return
         consoleLog('info','Downloading package for: '+this.versionName)
         const download = () => {
             return new Promise(async (resolve,reject) => {
@@ -280,6 +283,7 @@ class Softmod {
         this.location=json.location
         this.parent=json.collection
         this.requires=json.dependencies || json.modules || {}
+        if (json.modules) this.isScenario = true // scenario checker
         this.provides=json.submodules || {}
         // this is some migration code to remove objects from submodules
         for (let key in this.provides) {
@@ -298,6 +302,7 @@ class Softmod {
         this.location=json.location
         this.parent=json.collection
         this.requires=json.dependencies || json.modules || {}
+        if (json.modules) this.isScenario = true // scenario checker
         this.provides=json.submodules || {}
         // this is some migration code to remove objects from submodules
         for (let key in this.provides) {
@@ -314,6 +319,7 @@ class Softmod {
     }
 
     async updateCollection(saveToJson=false) {
+        if (this.isScenario) return
         // reads the name of the above dir to check for a parent
         const partentPath = this.downloadPath.substring(0,this.downloadPath.lastIndexOf('/'))
         if (partentPath != rootDir+config.modulesDir) {
@@ -322,12 +328,11 @@ class Softmod {
             const softmod = new Softmod(parentName)
             await softmod.readJson(true)
             consoleLog('info',`Detected collection: ${softmod.versionName} for ${this.versionName}`)
-            if (!this.name.startsWith(parentName)) {
-                consoleLog('warning',`Softmod "${softmod.versionName}" did not include its parent in its name; new name: "${parentName}.${this.name}"`)
-                this.name = `${parentName}.${this.name}`
-            }
             this.parent = `${parentName}@${softmod.version}`
-            if (saveToJson && this.json) this.json.collection = this.parent
+            if (saveToJson && this.json) {
+                this.json.collection = this.parent
+                this.json.name=this.name
+            }
             return this.collection
         }
     }
@@ -367,6 +372,7 @@ class Softmod {
     }
 
     updateRequires(saveToJson=false) {
+        if (this.isScenario) return
         // reads the control.lua and gets the installed versions for required modules
         return new Promise((resolve,reject) => {
             const regex = /(?:local \w+\s*=\s*require\('([^@]+?)(?:@([\^?<>=]+?\d\.\d\.\d))?'\))|(?:if loaded_modules\['([^@]+?)(?:@([\^?<>=]+?\d\.\d\.\d))?'\] then)/g
@@ -408,10 +414,6 @@ class Softmod {
                 }
             })
         }).catch(err => consoleLog('error',err))
-    }
-
-    validate(noOverwrite=false) {
-        // needs re doing for class
     }
 
     incrementVeresion(versionType,saveToJson=false,bak=false) {
@@ -467,6 +469,21 @@ class Softmod {
             }
         }
         return rtn
+    }
+
+    get isScenario() {
+        if (this.json && this.json.modules) return true
+        return this._isScenario
+    }
+
+    set isScenario(value) {
+        if (value) {
+            this._isScenario = true
+            this.downloadPath = rootDir+config.modulesDir
+        } else {
+            this._isScenario = false
+            this.downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
+        }
     }
 }
 
