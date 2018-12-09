@@ -34,7 +34,6 @@ module.exports = async (softmod,cmd) => {
             await getInput(softmod,cmd,'keywords')
             if (softmod.json.keywords) softmod.json.keywords = softmod.json.keywords.split(',').map(s => s.trim())
         }
-        fs.writeFile(softmod.downloadPath+'/test.txt','testy test')
         consoleLog('status','Building json file')
         await softmod.build(true,false,true)
         if (!softmod.isScenario && !fs.existsSync(softmod.downloadPath+config.luaFile)) {

@@ -98,7 +98,12 @@ function sortIndex(index) {
     for (softmodName in index) {
         if (!order.includes(softmodName)) {
             let currentIndex = 0
-            index[softmodName].dependencies.forEach(submod => {
+            const deps = index[softmodName].dependencies
+            if (index[softmodName].parent) {
+                const [parentName,parentVerseion] = Softmod.extractVersionFromName(index[softmodName].parent,true)
+                deps.push(new Softmod(parentName,parentVerseion))
+            }
+            deps.forEach(submod => {
                 if (order.includes(submod.name) && !submod.versionQurey.includes('?') && index[submod.name]) {
                     const submodIndex = order.indexOf(submod.name)
                     if (submodIndex > currentIndex) currentIndex = submodIndex+1

@@ -13,7 +13,7 @@ router.param('softmodName',(req,res,next,value,name) => {
 
 router.get('/:softmodName/versions',(req,res) => {
     const softmodName = req.params.softmodName
-    const query = req.query.v || req.params.softmodVersion
+    const query = req.query.v && req.query.v.replace('?','') || req.params.softmodVersion
     const softmodData = {}
     database.Softmods.findOne({
         where: {

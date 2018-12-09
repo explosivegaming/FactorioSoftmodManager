@@ -106,6 +106,7 @@ class Softmod {
         consoleLog('start','Building json for: '+this.versionName)
         // awaits all actions on json
         await Promise.all([this.updateCollection(true),this.udpateProvides(true),this.updateRequires(true)])
+        if (this.json.type) delete this.json.type
         if (save) await this.writeJson(bak)
         consoleLog('success',`Json for ${this.versionName} has been built.`)
     }
@@ -324,7 +325,7 @@ class Softmod {
         const partentPath = this.downloadPath.substring(0,this.downloadPath.lastIndexOf('/'))
         if (partentPath != rootDir+config.modulesDir) {
             // the parent dir is not the module dir, so this is a sub module
-            const parentName = partentPath.substring(partentPath.lastIndexOf('/')+1)
+            const parentName = partentPath.substring(partentPath.indexOf(config.modulesDir+'/')+config.modulesDir.length+1).replace('/','.')
             const softmod = new Softmod(parentName)
             await softmod.readJson(true)
             consoleLog('info',`Detected collection: ${softmod.versionName} for ${this.versionName}`)

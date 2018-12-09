@@ -61,11 +61,11 @@ function addWatch(interval=500) {
                     }).catch(err => consoleLog('error',err))
                 }).catch(err => consoleLog('error',err))
                 fs.remove(`${importsDir}/${file}`)
+            } else if (file.endsWith('.zip')) {
+                fs.move(`${importsDir}/${file}`,`${rootDir}/archive/${file}`)
+                .then(() => consoleLog('success','Copyied zip file to archive: '+file))
+                .catch(err => consoleLog('error',err))
             }
-        } else if (file.endsWith('.zip')) {
-            fs.move(`${importsDir}/${file}`,`${rootDir}/archive/${file}`)
-            .then(() => consoleLog('success','Copyied zip file to archive: '+file))
-            .catch(err => consoleLog('error',err))
         }
     })
 }
