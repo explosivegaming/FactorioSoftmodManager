@@ -56,6 +56,7 @@ program
 program
     .command('init [name] [dir]')
     .description('Init a new module, promts can be skiped with command line options')
+    .option('-s, --scenario','inits a scenario rather than a module')
     .option('-u, --url <url>','defines the url location for the module')
     .option('-a, --author <author>','defines the author for the module')
     .option('-l, --license <license>','defines the license type or location of the modules license')

@@ -26,6 +26,7 @@ function getModules(dir) {
 }
 
 function getRawSubmodules(softmod) {
+    if (softmod.isScenario) return []
     const rtn = []
     return new Promise((resolve,reject) => {
         fs.readdir(softmod.downloadPath,(err,files) => {
@@ -43,9 +44,9 @@ function getRawSubmodules(softmod) {
 }
 
 async function getBuildTasks(softmod,tasks) {
-    if (!tasks[softmod.name] && softmod.installed) {
-        tasks[softmod.name] = softmod
+    if (!tasks[softmod.name] && (softmod.installed || softmod.isScenario)) {
         await softmod.readJson(true)
+        tasks[softmod.name] = softmod
         const subs = await getRawSubmodules(softmod)
         await Promise.all(subs.map(sub => getBuildTasks(sub,tasks))) 
     }
@@ -57,6 +58,7 @@ module.exports = async (softmod,cmd) => {
         const tasks = {}
         if (cmd.all) {
             const modules = await getModules(rootDir+config.modulesDir)
+            if (fs.existsSync(`${rootDir}/${config.jsonFile}`)) modules.push(new Softmod('Scenario','*',true)) // checks for a scenario file
             await Promise.all(Object.values(modules).map(softmod => getBuildTasks(softmod,tasks)))
         } else await getBuildTasks(softmod,tasks)
         if (Object.keys(tasks).length == 0) throw new Error('Module is not insntalled')
@@ -84,6 +86,7 @@ module.exports = async (softmod,cmd) => {
         }))
         consoleLog('status','Building module zip files')
         await Promise.all(Object.values(tasks).map(task => {
+            if (task.isScenario) return
             consoleLog('start','Building zip for: '+task.versionName)
             return new Promise((resolve,reject) => {
                 // formating events for the zip archive

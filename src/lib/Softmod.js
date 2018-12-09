@@ -98,7 +98,6 @@ class Softmod {
     }
 
     async build(save=true,bak=false,skipRead=false) {
-        if (this.isScenario) return
         // regradless of force it will not install if it is mark to be skiped or has been installed this sesion
         if (Softmod.installChache.includes(this.name)) return
         installChache.push(this.name)
@@ -146,7 +145,7 @@ class Softmod {
         consoleLog('start','Installing softmod: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             if (!this.location) await this.updateFromJson()
-            if (!this.location) reject('No location for module download')
+            if (!this.location && !this.isScenario) reject('No location for module download')
             else {
                 await this.downloadPackage()
                 this.copyLocale() // causes some bugs for some reason, EBUSY
@@ -241,6 +240,7 @@ class Softmod {
             if (json && update) {
                 this.json = json
                 this.updateFromJsonSync()
+                return json
             }
         }).catch(err => {
             if (!err.code == 'ENOENT') consoleLog('error',err)
@@ -282,9 +282,9 @@ class Softmod {
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection
-        this.requires=json.dependencies || json.modules || {}
-        if (json.modules) this.isScenario = true // scenario checker
-        this.provides=json.submodules || {}
+        this.requires=json.dependencies || {}
+        this.provides=json.submodules || json.softmods || {}
+        if (json.softmods) {this.isScenario=true;this.name=json.name} // scenario checker
         // this is some migration code to remove objects from submodules
         for (let key in this.provides) {
             if (typeof this.provides[key] == 'object') {
@@ -301,9 +301,9 @@ class Softmod {
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection
-        this.requires=json.dependencies || json.modules || {}
-        if (json.modules) this.isScenario = true // scenario checker
-        this.provides=json.submodules || {}
+        this.requires=json.dependencies || {}
+        this.provides=json.submodules || json.softmods || {}
+        if (json.softmods) {this.isScenario=true;this.name=json.name} // scenario checker
         // this is some migration code to remove objects from submodules
         for (let key in this.provides) {
             if (typeof this.provides[key] == 'object') {
@@ -347,7 +347,7 @@ class Softmod {
                     for (let i=0;i<files.length;i++) {
                         const file = files[i]
                         if (fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
-                            const submod = new Softmod(`${this.name}.${file}`)
+                            const submod = this.isScenario ? new Softmod(file) : new Softmod(`${this.name}.${file}`)
                             const json = await submod.readJson(true)
                             if (json) {
                                 // if it is a directory and has a moudle json file
@@ -357,7 +357,10 @@ class Softmod {
                         }
                     }
                     if (Object.keys(submodules).length > 0) this.provides = submodules
-                    if (saveToJson && this.json) this.json.submodules = this.provides
+                    if (saveToJson && this.json) {
+                        if (this.isScenario) this.json.softmods = this.provides
+                        else this.json.submodules = this.provides
+                    }
                     // this is some migration code to remove objects from submodules
                     for (let key in this.provides) {
                         if (typeof this.provides[key] == 'object') {
@@ -409,7 +412,7 @@ class Softmod {
                     })
                     await Promise.all(promises)
                     if (Object.keys(dependencies).length > 0) this.requires = dependencies
-                    if (saveToJson && this.json) this.json.dependencies = this.requires 
+                    if (saveToJson && this.json) this.json.dependencies = this.requires
                     resolve(this.requires)
                 }
             })
@@ -472,7 +475,7 @@ class Softmod {
     }
 
     get isScenario() {
-        if (this.json && this.json.modules) return true
+        if (this.json && this.json.softmods) return true
         return this._isScenario
     }
 

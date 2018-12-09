@@ -7,7 +7,7 @@ const Softmod = require('../lib/Softmod')
 router.param('softmodName',(req,res,next,value,name) => {
     let [softmodName,softmodVersion] = Softmod.extractVersionFromName(req.params.softmodName,true)
     req.params.softmodName = softmodName
-    req.params.softmodVersion = softmodVersion
+    req.params.softmodVersion = softmodVersion.replace('?','')
     next()
 })
 
