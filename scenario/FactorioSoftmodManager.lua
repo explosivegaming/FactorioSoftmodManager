@@ -295,23 +295,21 @@ Manager.require = setmetatable({
         if success then return unpack(data)
         else
             if type(path) ~= 'string' then error('Path supplied must be a string; got: '..type(path),2) return end
-            -- else it assums the path was a module name and checks index for the module
-            if moduleIndex[path] then return rawget(Manager.loadModules,path) end
-            if moduleIndex[path:gsub('?','')] then return rawget(Manager.loadModules,path) end
-            -- if its not listed then it tries to remove a version tag and tries again
-            local path_no_version = path:find('@') and path:sub(1,path:find('@')-1) or path
-            if moduleIndex[path_no_version] then return rawget(Manager.loadModules,path_no_version) end
-            -- still no then it will look for all modules that include this one in the name (like a collection)
-            local collection = {}
+            local softmod = {}
+            local path = path:find('@') and path:sub(1,path:find('@')-1) or path
+            -- tries to load the module from the modeul index
+            if moduleIndex[path] then softmod = rawget(Manager.loadModules,path) end
+            -- will then look for any submodules if there are any
             for module_name,path in pairs(moduleIndex) do
-                if module_name:find('@') and module_name:sub(1,module_name:find('@')-1) == path_no_version then return rawget(Manager.loadModules,module_name) end
                 if module_name:find(path_no_version) then 
                     local start, _end = module_name:find(path_no_version)
-                    collection[module_name:sub(_end+2)] = rawget(Manager.loadModules,module_name)
+                    local subname = softmod[module_name:sub(_end+2)]
+                    -- does not add the module if it is a subsubmodule; or the key already exitsts
+                    if not subname:find('.') and not softmod[subname] then softmod[subname] = Manager.require(module_name) end
                 end
             end
-            -- if there is any keys in the collection the collection is returned else the errors with the require error
-            for _ in pairs(collection) do return collection end
+            -- if there is any keys in the softmod it is returned else the errors with the require error
+            for _ in pairs(softmod) do return softmod end
             if mute then return false else error(data,2) end
         end
     end
