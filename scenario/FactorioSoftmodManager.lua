@@ -390,10 +390,11 @@ Manager.loadModules = setmetatable({
         self = Manager.loadModules
         -- calls on_init for each module
         -- looks for init so that init or on_init can be used
+        local data = self[moduleName]
         if type(data) == 'table' and data.init and data.on_init == nil then data.on_init = data.init data.init = nil end
         if type(data) == 'table' and data.on_init and type(data.on_init) == 'function' then
             Manager.verbose('Initiating module: "'..moduleName..'"')
-            local success, err = Manager.sandbox(data.on_init,{moduleName=setupModuleName(moduleName),module_path=moduleIndex[tostring(moduleName)]},data)
+            local success, err = Manager.sandbox(data.on_init,{moduleName=setupModuleName(moduleName),module_path=Manager.loadModules.__load[tostring(moduleName)]},data)
             if success then
                 Manager.verbose('Successfully Initiated: "'..moduleName..'"')
             else
@@ -410,6 +411,7 @@ Manager.loadModules = setmetatable({
         self = Manager.loadModules
         -- calls on_post for each module
         -- looks for post so that post or on_post can be used
+        local data = self[moduleName]
         if type(data) == 'table' and data.post and data.on_post == nil then data.on_post = data.post data.post = nil end
         if type(data) == 'table' and data.on_post and type(data.on_post) == 'function' then
             Manager.verbose('Post for module: "'..moduleName..'"')
