@@ -86,70 +86,19 @@ function generateIndex() {
                     }
                 }
             }))
-            // sortIndex takes the softmodName:softmod index and converts adds a _order key
-            sortIndex(index)
             resolve(index)
         })
     }).catch(err => consoleLog('error',err))
 }
 
-function sortIndex(index) {
-    const order = Object.keys(index)
-    const deps = {}
-    for (softmodName in index) {
-        deps[softmodName] = index[softmodName].dependencies.map(value => value.name)
-        index[softmodName].dependencies.forEach(dep => {
-            dep = index[dep.name]
-            if (dep && dep.submodules.length > 0) {
-                dep.submodules.forEach(value => {
-                    if (!deps[softmodName].includes(value.name)) deps[softmodName].push(value.name)
-                })
-            }
-        })
-        if (index[softmodName].parent) {
-            const [parentName,parentVerseion] = Softmod.extractVersionFromName(index[softmodName].parent,true)
-            deps[softmodName].push(parentName)
-        }
-    }
-    function sort() {
-        const subDone = []
-        const changes = []
-        for (softmodName in index) {
-            if (!subDone.includes(softmodName)) {
-                subDone.push(softmodName)
-                const currentIndex = order.indexOf(softmodName)
-                const depsIndex = deps[softmodName].map(dep => order.indexOf(dep))
-                const max = Math.max(...depsIndex)
-                if (max+1 > currentIndex) {
-                    changes.push(softmodName)
-                    order.splice(currentIndex,1)
-                    order.splice(max+1,0,softmodName)
-                }
-            }
-        }
-        return changes
-    }
-    let ctn = 0
-    let lastChange = ['first']
-    let changes = []
-    while (true) { // need a better way to run this loop
-        ctn++
-        consoleLog('info','Sorting index run: '+ctn)
-        lastChange = changes
-        changes = sort()
-        if (ctn > 20) {
-            consoleLog('warning','Max sort count reached (20); index may not be in order')
-            break
-        }
-    }
-    index._order = order
-}
-
 function saveIndex(index) {
     let output = ''
-    index._order.forEach(softmodName => {
+    Object.keys(index).forEach(softmodName => {
         const softmod = index[softmodName]
-        output+=config.indexBody.replace('${module_name}',softmod.name).replace('${module_path}',`.${config.modulesDir}/${softmod.name.replace(/\./gi,'/')}`)
+        output+=config.indexBody
+            .replace('${module_name}',softmod.name)
+            .replace('${module_path}',`.${config.modulesDir}/${softmod.name.replace(/\./gi,'/')}`)
+            .replace('${deps}',softmod.dependencies.filter(dep => !dep.versionQurey.includes('?')).map(dep => `'${dep.name}'`))
     })
     fs.writeFileSync(rootDir+config.modulesDir+config.modulesIndex,config.indexHeader+output+config.indexFooter)
     consoleLog('info','Saved index.lua')

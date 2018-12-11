@@ -179,7 +179,7 @@ Manager.global=setmetatable({__defaults={},__global={
         local Global = _G.global
         local metatable = getmetatable(metatable_src)
         local moduleName = type(default) == 'string' and default or metatable and metatable._moduleName or moduleName
-        local module_path = type(default) == 'string' and moduleIndex[default] or metatable and metatable._module_path or module_path
+        local module_path = type(default) == 'string' and Manager.loadModules.__load[default] or metatable and metatable._module_path or module_path
         -- if there is no name or path then it will return and unedited version of global
         if not module_path or not moduleName then return _G.global end
         -- edits the link to global to be the corrected dir, path varible is also created
@@ -286,7 +286,7 @@ Manager.require = setmetatable({
 },{
     __metatable=false,
     __index=function(tbl,key) return tbl(key,nil,true) end,
-    __call=function(tbl,path,env,mute) 
+    __call=function(tbl,path,env,mute,noLoad) 
         local raw_require = rawget(tbl,'__require')
         local env = env or {}
         -- runs in a sand box becuase sandbox everything
@@ -299,20 +299,18 @@ Manager.require = setmetatable({
             local softmod = override
             local path = path:find('@') and path:sub(1,path:find('@')-1) or path
             -- tries to load the module from the modeul index
-            if moduleIndex[path] then softmod = Manager.loadModules[path] end
+            if moduleIndex[path] and not noLoad or Manager.loadModules.__load[path] then softmod = Manager.loadModules[path] end
             -- will then look for any submodules if there are any; only once every module is loaded
             for moduleName,subpath in pairs(moduleIndex) do
-                if moduleName:find(path) and moduleName ~= path then 
+                if moduleName:find(path) == 1 and moduleName ~= path then 
                     local start, _end = moduleName:find(path)
                     local subname = moduleName:sub(_end+2)
                     -- does not add the module if it is a subsubmodule; or the key already exitsts
-                    if not subname:find('.',nil,true) and not softmod[subname] then softmod[subname] = Manager.require(moduleName,nil,true) end
+                    if not subname:find('.',nil,true) and not softmod[subname] then softmod[subname] = Manager.require(moduleName,nil,true,true) end
                 end
             end
             -- if there is any keys in the softmod it is returned else the errors with the require error
-            if not softmod then if mute then return false else error(data,2) end end
             if override ~= softmod then return softmod end
-            for _ in pairs(softmod) do return softmod end
             if mute then return false else error(data,2) end
         end
     end
@@ -331,10 +329,23 @@ Manager.loadModules = setmetatable({
         if self[moduleName] then return end
         self[moduleName] = true
         self = Manager.loadModules
-        -- loads the module
-        local path = moduleIndex[moduleName]
-        if not path then return end
+        -- loads the module and its dependices if there are not loaded
+        local load = moduleIndex[moduleName]
+        if not load then return end
+        local path = table.remove(load,1)
         Manager.verbose('Loading module: "'..moduleName..'"; path: '..path)
+        -- loads the parent module
+        if moduleName:find('.',nil,true) then
+            local revModuleName = moduleName:reverse()
+            local start, _end = revModuleName:find('.',nil,true)
+            local parentName = revModuleName:sub(_end+1):reverse()
+            Manager.verbose('Loading module parent: "'..parentName..'" for: "'..moduleName..'"; path: '..path)
+            self.__load(parentName)
+        end
+        -- loads the dependices
+        Manager.verbose('Loading module dependices for: "'..moduleName..'"; path: '..path)
+        for _,depName in pairs(load) do self.__load(depName) end
+        self.__load[moduleName] = path
         -- runs the module in a sandbox env
         local success, module, sandbox = Manager.sandbox(Manager.require.__require,{moduleName=setupModuleName(moduleName),module_path=path},path..'/control')
         -- extracts the module into a global index table for later use
@@ -344,18 +355,9 @@ Manager.loadModules = setmetatable({
             for key,value in pairs(sandbox) do globals = globals..key..', ' end
             if globals ~= '' then Manager.verbose('Globals caught in "'..moduleName..'": '..globals:sub(1,-3),'errorCaught') end
             Manager.verbose('Successfully loaded: "'..moduleName..'"; path: '..path)
-            -- if you prefere module_exports can be used rather than returning the module
-            if type(rawget(self,moduleName)) == 'nil' then
-                -- if it is a new module then creat the new index
-                if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                then self[moduleName] = sandbox.module_exports
-                else self[moduleName] = table.remove(module,1) end
-            elseif type(rawget(self,moduleName)) == 'table' then
-                -- if this module adds onto an existing one then append the keys
-                if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                then for key,value in pairs(sandbox.module_exports) do self[moduleName][key] = value end
-                else for key,value in pairs(table.remove(module,1)) do self[moduleName][key] = value end end
-            else
+            -- if it is not a table or nil then it will set up a metatable on it
+            local currentType = type(rawget(self,moduleName))
+            if currentType ~= 'nil' and currentType ~= 'table' then
                 -- if it is a function then it is still able to be called even if more keys are going to be added
                 -- if it is a string then it will act like one; if it is a number well thats too many metatable indexs
                 self[moduleName] = setmetatable({__old=self[moduleName]},{
@@ -363,14 +365,19 @@ Manager.loadModules = setmetatable({
                     __tostring=function(self) return self.__old end,
                     __concat=function(self,val) return self.__old..val end
                 })
-                -- same as above for adding the keys to the table
-                if sandbox.module_exports and type(sandbox.module_exports) == 'table'
-                then for key,value in pairs(sandbox.module_exports) do self[moduleName][key] = value end
-                else for key,value in pairs(table.remove(module,1)) do self[moduleName][key] = value end end
             end
+            -- if you prefere module_exports can be used rather than returning the module
+            local appendAs = sandbox.module_exports or table.remove(module,1)
+            if not self[moduleName] then self[moduleName] = appendAs -- if nil it just sets the value
+            else for key,value in pairs(appendAs) do self[moduleName][key] = value end end -- else it appends the new values
             -- if there is a module by this name in _G ex table then it will be indexed to the new module
             if rawget(_G,moduleName) and type(rawget(self,moduleName)) == 'table' then setmetatable(rawget(_G,moduleName),{__index=self[moduleName]}) end
             if type(rawget(self,moduleName)) == 'table' then self[moduleName]._module_path = path self[moduleName]._moduleName = moduleName end
+            -- loads the submodule for this softmod
+            Manager.verbose('Loading submodules for: "'..moduleName..'"; path: '..path)
+            for subModName,_ in pairs(moduleIndex) do
+                if subModName:find(moduleName) == 1 and subModName ~= moduleName then self.__load(subModName) end
+            end
         else
             Manager.verbose('Failed load: "'..moduleName..'"; path: '..path..' ('..module..')','errorCaught')
             for event_name,callbacks in pairs(Manager.event) do Manager.verbose('Removed Event Handler: "'..moduleName..'/'..Manager.event.names[event_name],'eventRegistered') callbacks[moduleName] = nil end
@@ -406,7 +413,7 @@ Manager.loadModules = setmetatable({
         if type(data) == 'table' and data.post and data.on_post == nil then data.on_post = data.post data.post = nil end
         if type(data) == 'table' and data.on_post and type(data.on_post) == 'function' then
             Manager.verbose('Post for module: "'..moduleName..'"')
-            local success, err = Manager.sandbox(data.on_post,{moduleName=setupModuleName(moduleName),module_path=moduleIndex[tostring(moduleName)]},data)
+            local success, err = Manager.sandbox(data.on_post,{moduleName=setupModuleName(moduleName),module_path=Manager.loadModules.__load[tostring(moduleName)]},data)
             if success then
                 Manager.verbose('Successful post: "'..moduleName..'"')
             else
@@ -420,9 +427,11 @@ Manager.loadModules = setmetatable({
     {
         __metatable=false,
         __index=function(self,moduleName)
-            -- will load one module if it is not already loaded
+            -- will load one module if it is not already loaded, will not init during load state or post
             self.__load(moduleName)
+            if (ReadOnlyManager.currentState == 'moduleLoad') then return end
             self.__init(moduleName)
+            if (ReadOnlyManager.currentState == 'moduleInit') then return end
             self.__post(moduleName)
             return rawget(self,moduleName)
         end,
@@ -605,7 +614,7 @@ Manager.event = setmetatable({
             for moduleName,callback in pairs(event_functions) do
                 -- loops over the call backs and which module it is from
                 if type(callback) ~= 'function' then error('Invalid Event Callback: "'..event_name..'/'..moduleName..'"') end
-                local success, err = Manager.sandbox(callback,{moduleName=setupModuleName(moduleName),module_path=moduleIndex[tostring(moduleName)]},new_callback,...)
+                local success, err = Manager.sandbox(callback,{moduleName=setupModuleName(moduleName),module_path=Manager.loadModules.__load[tostring(moduleName)]},new_callback,...)
                 if not success then 
                     local chache = tbl.error_chache
                     local error_message = 'Event Failed: "'..moduleName..'/'..tbl.names[event_name]..'" ('..err..')'
