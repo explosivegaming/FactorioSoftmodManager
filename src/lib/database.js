@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize')
-const consoleLog = require('./consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./consoleLog')
 
 // look into replication.read and replication.write
 const sequelize = new Sequelize('factorioSoftmodManager',null,null,{
@@ -49,7 +49,7 @@ function authenticate() {
             consoleLog('error','Unable to connect to the database: '+err)
             return false
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 module.exports = {

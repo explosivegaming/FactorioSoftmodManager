@@ -5,7 +5,7 @@ const requestDatabase = request.defaults({baseUrl:config.serverURL})
 
 const unzipper = require('unzip')
 const fs = require('fs-extra')
-const consoleLog = require('./consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./consoleLog')
 const semver = require('semver')
 
 const rootDir = process.env.dir
@@ -13,10 +13,10 @@ const rootDir = process.env.dir
 const jsonChache = {}
 const installChache = []
 class Softmod {
-    constructor(name,versionQurey='*') {
+    constructor(name,versionQurey='*',isScenario=false) {
         this.name = name
         this.versionQurey = versionQurey
-        this.downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
+        this.isScenario = isScenario // this will cause the download path to be made
     }
 
     static get jsonChache() {
@@ -59,21 +59,22 @@ class Softmod {
     }
 
     async copyLocale() {
+        if (this.isScenario) return
         function recur(dir,dirName) {
             return new Promise((resolve,reject) => {
-                fs.readdir(dir,async (err,files) => {
+                fs.readdir(dir,(err,files) => {
                     if (err) reject(err)
                     else {
                         for (let i=0;i<files.length;i++) {
                             const file = files[i]
-                            if (fs.statSync(`${dir}/${file}`).isDirectory() && fs.existsSync(`${dir}/${file}/${config.jsonFile}`)) recur.apply(this,[`${dir}/${file}`,file])
+                            if (fs.statSync(`${dir}/${file}`).isDirectory() && !fs.existsSync(`${dir}/${file}/${config.jsonFile}`)) recur.apply(this,[`${dir}/${file}`,file])
                             else {
                                 if (file.includes('.cfg')) {
                                     let lang = dirName
                                     if (dirName == config.localeDir) lang = file.replace('.cfg','')
                                     try {
-                                        await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
-                                        .catch(err => consoleLog('error',err))
+                                        fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                        .catch(errorLog)
                                     } catch (err) {
                                         consoleLog('error',err)
                                     }
@@ -82,7 +83,7 @@ class Softmod {
                         }
                         resolve()
                     }
-                })
+                }).catch(reject)
             }).catch(err => {
                 if (!err.code == 'ENOENT') consoleLog('error',err)
             })
@@ -93,7 +94,7 @@ class Softmod {
             if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
                 return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
             }
-        })).catch(err => consoleLog('error',err))*/
+        })).catch(errorLog)*/
     }
 
     async build(save=true,bak=false,skipRead=false) {
@@ -105,6 +106,7 @@ class Softmod {
         consoleLog('start','Building json for: '+this.versionName)
         // awaits all actions on json
         await Promise.all([this.updateCollection(true),this.udpateProvides(true),this.updateRequires(true)])
+        if (this.json.type) delete this.json.type
         if (save) await this.writeJson(bak)
         consoleLog('success',`Json for ${this.versionName} has been built.`)
     }
@@ -127,10 +129,10 @@ class Softmod {
                 if (this.collection) promises.push(this.collection.uninstall(false,skip))
             }
             await Promise.all(promises)
-            fs.removeSync(this.downloadPath)
+            if (!this.isScenario) fs.removeSync(this.downloadPath)
             consoleLog('success','Uninstalled softmod: '+this.versionName)
             resolve()
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     // installs the softmod
@@ -144,10 +146,10 @@ class Softmod {
         consoleLog('start','Installing softmod: '+this.versionName)
         return new Promise(async (resolve,reject) => {
             if (!this.location) await this.updateFromJson()
-            if (!this.location) reject('No location for module download')
+            if (!this.location && !this.isScenario) reject('No location for module download')
             else {
                 await this.downloadPackage()
-                this.copyLocale() // causes some bugs for some reason, EBUSY
+                await this.copyLocale() // causes some bugs for some reason, EBUSY
                 let promises = this.dependencies.map(softmod => softmod.install(true,skip))
                 if (this.collection) promises.push(this.collection.install(false,skip))
                 if (recur) promises = promises.concat(this.submodules.map(softmod => softmod.install(true,skip)))
@@ -155,16 +157,17 @@ class Softmod {
                 consoleLog('success','Installed softmod: '+this.versionName)
                 resolve()
             }
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     downloadPackage() {
+        if (this.isScenario) return
         consoleLog('info','Downloading package for: '+this.versionName)
         const download = () => {
             return new Promise(async (resolve,reject) => {
                 const zipPath = `${this.downloadPath}/${this.name}.zip`
                 try {
-                    await fs.emptyDir(this.downloadPath)
+                    await fs.emptyDir(this.downloadPath).catch(reject)
                     let url = this.location
                     if (url == 'FSM_ARCHIVE') url = `${config.serverURL}/archive/${this.name}_${this.version}`
                     request(url)
@@ -172,16 +175,18 @@ class Softmod {
                     .pipe(fs.createWriteStream(zipPath))
                     .on('finish',() => {
                         fs.createReadStream(zipPath)
+                        .on('error',err => reject('Read Stream Error: '+err))
                         .pipe(unzipper.Extract({ path: this.downloadPath}))
-                        .on('error',err => reject('Pipe Error: '+err))
-                        .on('finish',async () => {
-                            if (this.json) fs.writeJsonSync(this.downloadPath+config.jsonFile,this.json,{spaces:2})
+                        .on('error',err => reject('Extract Pipe Error: '+err))
+                        .on('close',async () => {
+                            if (this.json) fs.writeJsonSync(this.downloadPath+config.jsonFile,this.json,{spaces:2,throws:false})
                             consoleLog('info','Downloaded package for: '+this.versionName)
                             resolve()
                         })
                     })
+                    .on('error',err => reject('Download Pipe Error: '+err))
                 } catch (err) {
-                    reject('Download Error: '+err) // bugs be bugs stopped working again....
+                    reject('Download Error: '+err)
                 }
             })
         }
@@ -195,7 +200,7 @@ class Softmod {
                     let success = false
                     while (!success && ctn < 10) {
                         ctn++
-                        await download.apply(this) //here
+                        await download.apply(this)
                         .catch(err => {
                             if (ctn == 10) reject(err)
                             success = false
@@ -230,7 +235,7 @@ class Softmod {
                     resolve(downloadPath)
                 }
             })
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     readJson(update) {
@@ -238,6 +243,7 @@ class Softmod {
             if (json && update) {
                 this.json = json
                 this.updateFromJsonSync()
+                return json
             }
         }).catch(err => {
             if (!err.code == 'ENOENT') consoleLog('error',err)
@@ -279,8 +285,9 @@ class Softmod {
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection
-        this.requires=json.dependencies || json.modules || {}
-        this.provides=json.submodules || {}
+        this.requires=json.dependencies || {}
+        this.provides=json.submodules || json.softmods || {}
+        if (json.softmods) {this.isScenario=true;this.name=json.name} // scenario checker
         // this is some migration code to remove objects from submodules
         for (let key in this.provides) {
             if (typeof this.provides[key] == 'object') {
@@ -297,8 +304,9 @@ class Softmod {
         this.version=semver.clean(json.version)
         this.location=json.location
         this.parent=json.collection
-        this.requires=json.dependencies || json.modules || {}
-        this.provides=json.submodules || {}
+        this.requires=json.dependencies || {}
+        this.provides=json.submodules || json.softmods || {}
+        if (json.softmods) {this.isScenario=true;this.name=json.name} // scenario checker
         // this is some migration code to remove objects from submodules
         for (let key in this.provides) {
             if (typeof this.provides[key] == 'object') {
@@ -314,16 +322,20 @@ class Softmod {
     }
 
     async updateCollection(saveToJson=false) {
+        if (this.isScenario) return
         // reads the name of the above dir to check for a parent
         const partentPath = this.downloadPath.substring(0,this.downloadPath.lastIndexOf('/'))
         if (partentPath != rootDir+config.modulesDir) {
             // the parent dir is not the module dir, so this is a sub module
-            const parentName = partentPath.substring(partentPath.lastIndexOf('/')+1)
+            const parentName = partentPath.substring(partentPath.indexOf(config.modulesDir+'/')+config.modulesDir.length+1).replace('/','.')
             const softmod = new Softmod(parentName)
             await softmod.readJson(true)
             consoleLog('info',`Detected collection: ${softmod.versionName} for ${this.versionName}`)
             this.parent = `${parentName}@${softmod.version}`
-            if (saveToJson && this.json) this.json.collection = this.parent
+            if (saveToJson && this.json) {
+                this.json.collection = this.parent
+                this.json.name=this.name
+            }
             return this.collection
         }
     }
@@ -338,7 +350,7 @@ class Softmod {
                     for (let i=0;i<files.length;i++) {
                         const file = files[i]
                         if (fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
-                            const submod = new Softmod(`${this.name}.${file}`)
+                            const submod = this.isScenario ? new Softmod(file) : new Softmod(`${this.name}.${file}`)
                             const json = await submod.readJson(true)
                             if (json) {
                                 // if it is a directory and has a moudle json file
@@ -348,7 +360,10 @@ class Softmod {
                         }
                     }
                     if (Object.keys(submodules).length > 0) this.provides = submodules
-                    if (saveToJson && this.json) this.json.submodules = this.provides
+                    if (saveToJson && this.json) {
+                        if (this.isScenario) this.json.softmods = this.provides
+                        else this.json.submodules = this.provides
+                    }
                     // this is some migration code to remove objects from submodules
                     for (let key in this.provides) {
                         if (typeof this.provides[key] == 'object') {
@@ -359,10 +374,11 @@ class Softmod {
                     resolve(this.provides)
                 }
             })
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     updateRequires(saveToJson=false) {
+        if (this.isScenario) return
         // reads the control.lua and gets the installed versions for required modules
         return new Promise((resolve,reject) => {
             const regex = /(?:local \w+\s*=\s*require\('([^@]+?)(?:@([\^?<>=]+?\d\.\d\.\d))?'\))|(?:if loaded_modules\['([^@]+?)(?:@([\^?<>=]+?\d\.\d\.\d))?'\] then)/g
@@ -395,19 +411,15 @@ class Softmod {
                                 }
                             }
                             resolve()
-                        }).catch(err => consoleLog('error',err)))
+                        }).catch(errorLog))
                     })
                     await Promise.all(promises)
                     if (Object.keys(dependencies).length > 0) this.requires = dependencies
-                    if (saveToJson && this.json) this.json.dependencies = this.requires 
+                    if (saveToJson && this.json) this.json.dependencies = this.requires
                     resolve(this.requires)
                 }
             })
-        }).catch(err => consoleLog('error',err))
-    }
-
-    validate(noOverwrite=false) {
-        // needs re doing for class
+        }).catch(errorLog)
     }
 
     incrementVeresion(versionType,saveToJson=false,bak=false) {
@@ -421,16 +433,15 @@ class Softmod {
     }
 
     get installed() {
-        const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
-        if (!fs.existsSync(downloadPath+config.jsonFile)) return false
-        const json = fs.readJSONSync(downloadPath+config.jsonFile)
-        if (!json && json.version) return false
-        /*if (this.version) {
-            return semver.eq(json.version,this.version)
-        } else {
-            return semver.satisfies(json.version,this.versionQurey.replace('?',''))
-        }*/
-        return true
+        try {
+            const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
+            if (!fs.existsSync(downloadPath+config.jsonFile)) return false
+            const json = fs.readJSONSync(downloadPath+config.jsonFile,{throws:false})
+            if (!json || !json.version) return false
+            return true
+        } catch(err) {
+            errorLog(err)
+        }
     }
 
     get versionName() {
@@ -463,6 +474,21 @@ class Softmod {
             }
         }
         return rtn
+    }
+
+    get isScenario() {
+        if (this.json && this.json.softmods) return true
+        return this._isScenario
+    }
+
+    set isScenario(value) {
+        if (value) {
+            this._isScenario = true
+            this.downloadPath = rootDir+config.modulesDir
+        } else {
+            this._isScenario = false
+            this.downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
+        }
     }
 }
 

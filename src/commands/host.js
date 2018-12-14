@@ -2,7 +2,7 @@ const fs = require('fs-extra')
 const database = require('../lib/database.js')
 const semver = require('semver')
 
-const consoleLog = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 const Softmod = require('../lib/Softmod')
 const rootDir = process.env.dir
 
@@ -42,7 +42,7 @@ function addWatch(interval=500) {
             if (file.endsWith('.json')) {
                 // the file is a json file
                 fs.readJSON(`${importsDir}/${file}`)
-                .catch(err => consoleLog('error',err))
+                .catch(errorLog)
                 .then(json => {
                     const converted = convertJson(json)
                     database.Softmods.upsert(converted.details).then(() => {
@@ -56,16 +56,16 @@ function addWatch(interval=500) {
                                     consoleLog('success','Created new entry: '+converted.version.name)
                                 })
                                 softmodEntry.addVersion(entry)
-                            }).catch(err => consoleLog('error',err))
-                        }).catch(err => consoleLog('error',err))
-                    }).catch(err => consoleLog('error',err))
-                }).catch(err => consoleLog('error',err))
+                            }).catch(errorLog)
+                        }).catch(errorLog)
+                    }).catch(errorLog)
+                }).catch(errorLog)
                 fs.remove(`${importsDir}/${file}`)
+            } else if (file.endsWith('.zip')) {
+                fs.move(`${importsDir}/${file}`,`${rootDir}/archive/${file}`)
+                .then(() => consoleLog('success','Copyied zip file to archive: '+file))
+                .catch(errorLog)
             }
-        } else if (file.endsWith('.zip')) {
-            fs.move(`${importsDir}/${file}`,`${rootDir}/archive/${file}`)
-            .then(() => consoleLog('success','Copyied zip file to archive: '+file))
-            .catch(err => consoleLog('error',err))
         }
     })
 }
@@ -80,6 +80,6 @@ module.exports = async cmd => {
         app.listen(cmd.port,cmd.address, () => {
             consoleLog('start','Server started on: '+cmd.port)
         })
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     }
 }

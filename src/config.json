@@ -10,10 +10,10 @@
     "modulesIndex": "/index.lua",
     "indexHeader": "-- not_luadoc=true\n--- Used to index the files to be loaded\nreturn {\n",
     "indexFooter": "}",
-    "indexBody": "    ['${module_name}']='${module_path}',\n",
+    "indexBody": "    ['${module_name}']={'${module_path}',${deps}},\n",
     "hostPort": 3001,
     "hostIP": null,
     "removeLocaleAfterInstall": false,
     "cleanModules": true,
-    "serverURL": "http://explosivegaming.nl:3001"
+    "serverURL": "http://localhost:3001"
 }

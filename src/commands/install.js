@@ -4,26 +4,45 @@ const promptly = require('promptly')
 const config = require('../config.json')
 
 const Softmod = require('../lib/Softmod')
-const consoleLog = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
+const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
 
-function initDir() {
-    return new Promise((resovle,reject) => {
+function initDir(dev) {
+    return new Promise(async (resovle,reject) => {
         const installLocation = process.argv[1]+config.srcScenario
-        fs.readdir(installLocation,(err,files) => {
-            if (err) reject(err)
-            else {
-                files.forEach(file => {
-                    if (fs.statSync(`${installLocation}/${file}`).isFile()) {
-                        fs.copy(`${installLocation}/${file}`,`${rootDir}/${file}`,{overwrite:process.env.useForce})
-                        consoleLog('info','Copyed '+file)
-                    }
-                })
-                resovle()
-            }
-        })
-    }).catch(err => consoleLog('error',err))
+        await fs.readdir(installLocation).then(files => {
+            files.forEach(file => {
+                if (fs.statSync(`${installLocation}/${file}`).isFile()) {
+                    fs.copy(`${installLocation}/${file}`,`${rootDir}/${file}`,{overwrite:process.env.useForce})
+                    consoleLog('info','Copyed '+file)
+                }
+            })
+        }).catch(reject)
+        // hanndels the different levels of verbose
+        if (dev) {
+            if (dev == true) dev = 4
+            if (dev == 'none') dev = -1
+            fs.readFile(rootDir+config.luaFile).then(data => {
+                let newData = data.toString()
+                if (dev >= 5) newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=true,')
+                else newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=false,')
+                if (dev >= 4) newData = newData.replace(/modulePost=(.+?),/g,'modulePost=true,')
+                else newData = newData.replace(/modulePost=(.+?),/g,'modulePost=false,')
+                if (dev >= 3) newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=true,')
+                else newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=false,')
+                if (dev >= 2) newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=true,')
+                else newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=false,')
+                if (dev >= 1) newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=true,')
+                else newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=false,')
+                if (dev >= 0) newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=true,')
+                else newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=false,')
+                fs.writeFile(rootDir+config.luaFile,newData)
+            }).catch(reject)
+    }
+         resovle()
+    }).catch(errorLog)
 }
 
 async function skipPromt(submod,skip,noSkip,forceRecur) {
@@ -63,63 +82,6 @@ async function getSkips(softmod,skip,noSkip) {
     consoleLog('info','Checked dependencies for: '+softmod.name)
 }
 
-async function addSoftmodToIndex(softmod,index) {
-    if (Object.keys(index).includes(softmod.name)) return
-    await softmod.updateFromJson()
-    if (softmod.installed) {
-        consoleLog('info',`Added ${softmod.name} to the module index.`)
-        index[softmod.name] = softmod
-        await Promise.all(softmod.submodules.map(submod => addSoftmodToIndex(submod,index)))
-    }
-}
-
-function generateIndex() {
-    const index = {}
-    return new Promise((resolve,reject) => {
-        fs.readdir(rootDir+config.modulesDir,async (err,files) => {
-            await Promise.all(files.map(file => {
-                if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
-                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`,{throws:false})
-                    if (softmodJson) {
-                        const softmod = Softmod.fromJson(softmodJson)
-                        return addSoftmodToIndex(softmod,index)
-                    }
-                }
-            }))
-            // sortIndex takes the softmodName:softmod index and converts adds a _order key
-            sortIndex(index)
-            resolve(index)
-        })
-    }).catch(err => consoleLog('error',err))
-}
-
-function sortIndex(index) {
-    const order = []
-    for (softmodName in index) {
-        if (!order.includes(softmodName)) {
-            let currentIndex = 0
-            index[softmodName].dependencies.forEach(submod => {
-                if (order.includes(submod.name) && !submod.versionQurey.includes('?') && index[submod.name]) {
-                    const submodIndex = order.indexOf(submod.name)
-                    if (submodIndex > currentIndex) currentIndex = submodIndex+1
-                }
-            })
-            order.splice(currentIndex,0,softmodName)
-        }
-    }
-    index._order = order
-}
-
-function saveIndex(index) {
-    let output = ''
-    index._order.forEach(softmodName => {
-        const softmod = index[softmodName]
-        output+=config.indexBody.replace('${module_name}',softmod.name).replace('${module_path}',softmod.downloadPath)
-    })
-    fs.writeFileSync(rootDir+config.modulesDir+config.modulesIndex,config.indexHeader+output+config.indexFooter)
-    consoleLog('info','Saved index.lua')
-}
-
 function moveLocale() {
     return new Promise((resolve,reject) => {
         fs.readdir(rootDir+config.modulesDir,async (err,files) => {
@@ -134,7 +96,7 @@ function moveLocale() {
                 resolve()
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 module.exports = async (softmod,cmd) => {
@@ -143,15 +105,16 @@ module.exports = async (softmod,cmd) => {
         if (cmd.dryRun) {
             // nothing will be downloaded
             consoleLog('status','Init of scenario files.')
-            await initDir()
+            await initDir(cmd.dev)
             consoleLog('status','Generating index file.')
-            const index = await generateIndex()
-            saveIndex(index)
+            const index = new LuaIndex()
+            await index.readDir(rootDir+config.modulesDir)
+            await index.save(rootDir+config.modulesDir)
             consoleLog('status','Post install locale copying (dry-run only)')
             moveLocale()
         } else {
             consoleLog('status','Init of scenario files.')
-            await initDir()
+            await initDir(cmd.dev)
             if (!process.env.useForce && softmod.installed) throw new Error('Softmod already installed')
             // generates a skip queue for optional modules
             consoleLog('status','Generating skip queue.')
@@ -168,11 +131,12 @@ module.exports = async (softmod,cmd) => {
             await softmod.install(true,skip)
             consoleLog('status','Generating index file.')
             await new Promise(resolve => setTimeout(resolve,10)) // bugs in the index generation with modules paths not existing
-            const index = await generateIndex()
-            saveIndex(index)
+            const index = new LuaIndex()
+            await index.readDir(rootDir+config.modulesDir)
+            await index.save(rootDir+config.modulesDir)
             if (!cmd.keepJsons) fs.remove(rootDir+config.jsonDir)
         }
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

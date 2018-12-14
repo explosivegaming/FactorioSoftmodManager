@@ -4,7 +4,8 @@ const config = require('../config.json')
 const archiver = require('archiver')
 
 const Softmod = require('../lib/Softmod')
-const consoleLog = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
+const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
 
@@ -22,10 +23,11 @@ function getModules(dir) {
                 resolve(rtn)
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 function getRawSubmodules(softmod) {
+    if (softmod.isScenario) return []
     const rtn = []
     return new Promise((resolve,reject) => {
         fs.readdir(softmod.downloadPath,(err,files) => {
@@ -39,13 +41,13 @@ function getRawSubmodules(softmod) {
                 resolve(rtn)
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 async function getBuildTasks(softmod,tasks) {
-    if (!tasks[softmod.name] && softmod.installed) {
-        tasks[softmod.name] = softmod
+    if (!tasks[softmod.name] && (softmod.installed || softmod.isScenario)) {
         await softmod.readJson(true)
+        tasks[softmod.name] = softmod
         const subs = await getRawSubmodules(softmod)
         await Promise.all(subs.map(sub => getBuildTasks(sub,tasks))) 
     }
@@ -53,10 +55,11 @@ async function getBuildTasks(softmod,tasks) {
 
 module.exports = async (softmod,cmd) => {
     try {
-        const outputDir = cmd.outputDir || '.'+config.outputDir
+        const outputDir = typeof cmd.export == 'string' && cmd.export || '.'+config.outputDir
         const tasks = {}
         if (cmd.all) {
             const modules = await getModules(rootDir+config.modulesDir)
+            if (fs.existsSync(`${rootDir}/${config.jsonFile}`)) modules.push(new Softmod('Scenario','*',true)) // checks for a scenario file
             await Promise.all(Object.values(modules).map(softmod => getBuildTasks(softmod,tasks)))
         } else await getBuildTasks(softmod,tasks)
         if (Object.keys(tasks).length == 0) throw new Error('Module is not insntalled')
@@ -66,7 +69,7 @@ module.exports = async (softmod,cmd) => {
         let userInput = true
         if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the build: (yes)',{default:'yes'})
         if (!userInput) throw new Error('canceled')
-        await fs.ensureDir(outputDir)
+        if (cmd.export) await fs.ensureDir(outputDir)
         // incremments the version numbers
         if (cmd.versionIncrement && !cmd.versionIncrementAll) {
             consoleLog('status','Incrementing version numbers')
@@ -79,11 +82,52 @@ module.exports = async (softmod,cmd) => {
         consoleLog('status','Building module json files')
         await Promise.all(Object.values(tasks).map(async task => {
             await task.build(true,cmd.createBackup,true)
-            await fs.copy(task.downloadPath+config.jsonFile,`${outputDir}/${task.name}_${task.version}.json`)
-            consoleLog('info','Exported json for: '+task.versionName)
+            if (cmd.export) {
+                await fs.copy(task.downloadPath+config.jsonFile,`${outputDir}/${task.name}_${task.version}.json`)
+                consoleLog('info','Exported json for: '+task.versionName)
+            }
         }))
+        // copies all local files
+        consoleLog('status','Coyping locale files')
+        await Promise.all(Object.values(tasks).map(async task => {
+            await task.copyLocale()
+        }))
+        // builds a new index file
+        consoleLog('status','Building new lus index')
+        const index = new LuaIndex()
+        await index.readDir(rootDir+config.modulesDir)
+        await index.save(rootDir+config.modulesDir)
+        if (cmd.export) await index.save(outputDir)
+        // updates control.lua if needed
+        // hanndels the different levels of verbose
+        if (dev) {
+            if (dev == true) dev = 4
+            if (dev == 'none') dev = -1
+            fs.readFile(rootDir+config.luaFile).then(data => {
+                let newData = data.toString()
+                if (dev >= 5) newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=true,')
+                else newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=false,')
+                if (dev >= 4) newData = newData.replace(/modulePost=(.+?),/g,'modulePost=true,')
+                else newData = newData.replace(/modulePost=(.+?),/g,'modulePost=false,')
+                if (dev >= 3) newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=true,')
+                else newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=false,')
+                if (dev >= 2) newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=true,')
+                else newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=false,')
+                if (dev >= 1) newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=true,')
+                else newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=false,')
+                if (dev >= 0) newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=true,')
+                else newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=false,')
+                fs.writeFile(rootDir+config.luaFile,newData)
+            }).catch(reject)
+        }
+        // if no exporting then no point making zip files
+        if (!cmd.export) {
+            finaliseLog()
+            return
+        }
         consoleLog('status','Building module zip files')
         await Promise.all(Object.values(tasks).map(task => {
+            if (task.isScenario) return
             consoleLog('start','Building zip for: '+task.versionName)
             return new Promise((resolve,reject) => {
                 // formating events for the zip archive
@@ -118,9 +162,9 @@ module.exports = async (softmod,cmd) => {
                     }
                 })
                 // tells the archiver to finish and save
-            }).catch(err => consoleLog('error',err))
+            }).catch(errorLog)
         }))
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     } catch (err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

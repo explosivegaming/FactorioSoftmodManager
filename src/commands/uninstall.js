@@ -2,7 +2,7 @@ const fs = require('fs-extra')
 const promptly = require('promptly')
 const config = require('../config.json')
 
-const consoleLog = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 const Softmod = require('../lib/Softmod')
 
 const rootDir = process.env.dir
@@ -54,7 +54,7 @@ function getInstalled() {
             }))
             resolve(installed)
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 function cleanIndex(removedModules) {
@@ -75,7 +75,7 @@ function cleanIndex(removedModules) {
                 fs.writeFile(rootDir+config.modulesDir+config.modulesIndex,newData.join('\n')).then(resolve)
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 module.exports = async (softmod,cmd) => {
@@ -83,7 +83,7 @@ module.exports = async (softmod,cmd) => {
         if (cmd.clearJsons) {
             consoleLog('status','Removing temp json dir.')
             fs.removeSync(rootDir+config.jsonDir)
-            consoleLog('status','Command Finnished')
+            finaliseLog()
             return
         }
         if (cmd.all) {
@@ -91,7 +91,7 @@ module.exports = async (softmod,cmd) => {
             fs.emptyDirSync(rootDir)
             const scenario = process.argv[1]+config.srcScenario+config.modulesDir+'/default-factorio-control.lua'
             fs.copySync(scenario,rootDir+config.luaFile)
-            consoleLog('status','Command Finnished')
+            finaliseLog()
             return
         }
         if (!softmod.installed && !process.env.useForce) throw new Error('Module not installed')
@@ -124,7 +124,7 @@ module.exports = async (softmod,cmd) => {
             consoleLog('status','Cleaning module index')
             await cleanIndex(uninstallModules)
         }
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

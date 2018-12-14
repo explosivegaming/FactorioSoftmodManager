@@ -3,17 +3,18 @@ const router = Express.Router()
 const database = require('../lib/database')
 const semver = require('semver')
 const Softmod = require('../lib/Softmod')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 
 router.param('softmodName',(req,res,next,value,name) => {
     let [softmodName,softmodVersion] = Softmod.extractVersionFromName(req.params.softmodName,true)
     req.params.softmodName = softmodName
-    req.params.softmodVersion = softmodVersion
+    req.params.softmodVersion = softmodVersion.replace('?','')
     next()
 })
 
 router.get('/:softmodName/versions',(req,res) => {
     const softmodName = req.params.softmodName
-    const query = req.query.v || req.params.softmodVersion
+    const query = req.query.v && req.query.v.replace('?','') || req.params.softmodVersion
     const softmodData = {}
     database.Softmods.findOne({
         where: {
@@ -36,7 +37,7 @@ router.get('/:softmodName/versions',(req,res) => {
                     })
                     res.json(softmodData)
                 }
-            })
+            }).catch(err => consoleLog('error',err))
         }
     }).catch(err => consoleLog('error',err))
 })

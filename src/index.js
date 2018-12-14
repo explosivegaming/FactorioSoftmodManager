@@ -2,7 +2,7 @@
 const program = require('commander')
 const fs = require('fs-extra')
 const config = require('./config')
-const consoleLog = require('./lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./lib/consoleLog')
 
 // a common function used to auto format the dir and find the softmod which is being used
 async function softmodDirVal(name='.',dir='.',cmd,path) {
@@ -56,6 +56,7 @@ program
 program
     .command('init [name] [dir]')
     .description('Init a new module, promts can be skiped with command line options')
+    .option('-s, --scenario','inits a scenario rather than a module')
     .option('-u, --url <url>','defines the url location for the module')
     .option('-a, --author <author>','defines the author for the module')
     .option('-l, --license <license>','defines the license type or location of the modules license')
@@ -69,8 +70,9 @@ program
     .alias('b')
     .description('Builds the module or collection and will give the exports which can then be added to the host')
     .option('-b, --create-backup','the old json will be renamed to have .bak on the end of the name')
-    .option('-o, --output-dir','the dir that the zips and jsons will be saved to relative to the active dir')
     .option('-a, --all','builds all modules that are insatlled')
+    .option('-e, --export [dir]','will output the softmod files to ./exports or the given dir')
+    .option('-D, --dev [level]','installs the dev control.lua which has verbose enabled, levels: none (none) 0 (errors) to 5 (event registers)')
     .option('-i, --version-increment [major|minor|patch]','increments the version number in a certain area, default patch')
     .option('-I, --version-increment-all [major|minor|patch]','increments the version number in a certain area, for all modules, default patch')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/build'))
@@ -81,6 +83,7 @@ program
     .alias('i')
     .description('Installs all modules that are required to run a secario or adds a dependencie for a module')
     .option('-d, --dry-run','will not download any thing but will move and create files')
+    .option('-D, --dev [level]','installs the dev control.lua which has verbose enabled, levels: none (none) 0 (errors) to 5 (event registers)')
     .option('-z, --keep-zips','does not remove zip files after download')
     .option('-j, --keep-jsons','does not remove json dir after download')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/install'))
@@ -112,26 +115,6 @@ program
         require('./commands/host')(cmd)
     })
 
-// just a command that is used to test certain parts of the code without forcing a path; no constant function
-program
-    .command('test [dir]')
-    .description('a test command')
-    .action(async (dir='.',cmd) => {
-        process.env.dir = dir
-        process.env.databasePath = dir+'/fsm.db'
-        process.env.download = true
-        const database = require('./lib/database')
-        database.Softmods.findOne({
-            where: {
-                name: 'test'
-            }
-        }).then(softmod => {
-            softmod.getVersions().then(versions => {
-                versions.forEach(version => console.log(version.name))
-            })
-        })
-    })
-
 // program info
 program
     .version('1.1.9')
@@ -146,6 +129,11 @@ program
 // if no command then it displays help
 if (process.argv[2]) program.parse(process.argv)
 else program.help()
+
+process.on('error',err => {
+    errorLog(err)
+    finaliseLog()
+})
 
 module.exports = () => {
     program.parse(arguments.join(' '))
