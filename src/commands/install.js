@@ -9,21 +9,39 @@ const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
 
-function initDir() {
-    return new Promise((resovle,reject) => {
+function initDir(dev) {
+    return new Promise(async (resovle,reject) => {
         const installLocation = process.argv[1]+config.srcScenario
-        fs.readdir(installLocation,(err,files) => {
-            if (err) reject(err)
-            else {
-                files.forEach(file => {
-                    if (fs.statSync(`${installLocation}/${file}`).isFile()) {
-                        fs.copy(`${installLocation}/${file}`,`${rootDir}/${file}`,{overwrite:process.env.useForce})
-                        consoleLog('info','Copyed '+file)
-                    }
-                })
-                resovle()
-            }
-        })
+        await fs.readdir(installLocation).then(files => {
+            files.forEach(file => {
+                if (fs.statSync(`${installLocation}/${file}`).isFile()) {
+                    fs.copy(`${installLocation}/${file}`,`${rootDir}/${file}`,{overwrite:process.env.useForce})
+                    consoleLog('info','Copyed '+file)
+                }
+            })
+        }).catch(reject)
+        // hanndels the different levels of verbose
+        if (dev) {
+            if (dev == true) dev = 4
+            if (dev == 'none') dev = -1
+            fs.readFile(rootDir+config.luaFile).then(data => {
+                let newData = data.toString()
+                if (dev >= 5) newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=true,')
+                else newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=false,')
+                if (dev >= 4) newData = newData.replace(/modulePost=(.+?),/g,'modulePost=true,')
+                else newData = newData.replace(/modulePost=(.+?),/g,'modulePost=false,')
+                if (dev >= 3) newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=true,')
+                else newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=false,')
+                if (dev >= 2) newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=true,')
+                else newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=false,')
+                if (dev >= 1) newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=true,')
+                else newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=false,')
+                if (dev >= 0) newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=true,')
+                else newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=false,')
+                fs.writeFile(rootDir+config.luaFile,newData)
+            }).catch(reject)
+    }
+         resovle()
     }).catch(errorLog)
 }
 
@@ -87,15 +105,16 @@ module.exports = async (softmod,cmd) => {
         if (cmd.dryRun) {
             // nothing will be downloaded
             consoleLog('status','Init of scenario files.')
-            await initDir()
+            await initDir(cmd.dev)
             consoleLog('status','Generating index file.')
-            const index = await generateIndex()
-            saveIndex(index)
+            const index = new LuaIndex()
+            await index.readDir(rootDir+config.modulesDir)
+            await index.save(rootDir+config.modulesDir)
             consoleLog('status','Post install locale copying (dry-run only)')
             moveLocale()
         } else {
             consoleLog('status','Init of scenario files.')
-            await initDir()
+            await initDir(cmd.dev)
             if (!process.env.useForce && softmod.installed) throw new Error('Softmod already installed')
             // generates a skip queue for optional modules
             consoleLog('status','Generating skip queue.')

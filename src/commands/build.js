@@ -98,6 +98,28 @@ module.exports = async (softmod,cmd) => {
         await index.readDir(rootDir+config.modulesDir)
         await index.save(rootDir+config.modulesDir)
         if (cmd.export) await index.save(outputDir)
+        // updates control.lua if needed
+        // hanndels the different levels of verbose
+        if (dev) {
+            if (dev == true) dev = 4
+            if (dev == 'none') dev = -1
+            fs.readFile(rootDir+config.luaFile).then(data => {
+                let newData = data.toString()
+                if (dev >= 5) newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=true,')
+                else newData = newData.replace(/eventRegistered=(.+?),/g,'eventRegistered=false,')
+                if (dev >= 4) newData = newData.replace(/modulePost=(.+?),/g,'modulePost=true,')
+                else newData = newData.replace(/modulePost=(.+?),/g,'modulePost=false,')
+                if (dev >= 3) newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=true,')
+                else newData = newData.replace(/moduleInit=(.+?),/g,'moduleInit=false,')
+                if (dev >= 2) newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=true,')
+                else newData = newData.replace(/moduleLoad=(.+?),/g,'moduleLoad=false,')
+                if (dev >= 1) newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=true,')
+                else newData = newData.replace(/moduleEnv=(.+?),/g,'moduleEnv=false,')
+                if (dev >= 0) newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=true,')
+                else newData = newData.replace(/errorCaught=(.+?),/g,'errorCaught=false,')
+                fs.writeFile(rootDir+config.luaFile,newData)
+            }).catch(reject)
+        }
         // if no exporting then no point making zip files
         if (!cmd.export) {
             finaliseLog()
