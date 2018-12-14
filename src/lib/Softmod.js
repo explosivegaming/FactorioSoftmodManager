@@ -5,7 +5,7 @@ const requestDatabase = request.defaults({baseUrl:config.serverURL})
 
 const unzipper = require('unzip')
 const fs = require('fs-extra')
-const consoleLog = require('./consoleLog')
+const [consoleLog,errorLog] = require('./consoleLog')
 const semver = require('semver')
 
 const rootDir = process.env.dir
@@ -74,7 +74,7 @@ class Softmod {
                                     if (dirName == config.localeDir) lang = file.replace('.cfg','')
                                     try {
                                         await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
-                                        .catch(err => consoleLog('error',err))
+                                        .catch(errorLog)
                                     } catch (err) {
                                         consoleLog('error',err)
                                     }
@@ -94,7 +94,7 @@ class Softmod {
             if (!file.includes('.zip') && fs.statSync(`${this.downloadPath}/${file}`).isDirectory()) {
                 return new Softmod(`${this.name}.${file}`,this.versionQurey).copyLocale()
             }
-        })).catch(err => consoleLog('error',err))*/
+        })).catch(errorLog)*/
     }
 
     async build(save=true,bak=false,skipRead=false) {
@@ -132,7 +132,7 @@ class Softmod {
             if (!this.isScenario) fs.removeSync(this.downloadPath)
             consoleLog('success','Uninstalled softmod: '+this.versionName)
             resolve()
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     // installs the softmod
@@ -157,7 +157,7 @@ class Softmod {
                 consoleLog('success','Installed softmod: '+this.versionName)
                 resolve()
             }
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     downloadPackage() {
@@ -233,7 +233,7 @@ class Softmod {
                     resolve(downloadPath)
                 }
             })
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     readJson(update) {
@@ -372,7 +372,7 @@ class Softmod {
                     resolve(this.provides)
                 }
             })
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     updateRequires(saveToJson=false) {
@@ -409,7 +409,7 @@ class Softmod {
                                 }
                             }
                             resolve()
-                        }).catch(err => consoleLog('error',err)))
+                        }).catch(errorLog))
                     })
                     await Promise.all(promises)
                     if (Object.keys(dependencies).length > 0) this.requires = dependencies
@@ -417,7 +417,7 @@ class Softmod {
                     resolve(this.requires)
                 }
             })
-        }).catch(err => consoleLog('error',err))
+        }).catch(errorLog)
     }
 
     incrementVeresion(versionType,saveToJson=false,bak=false) {

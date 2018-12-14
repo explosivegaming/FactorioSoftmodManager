@@ -1,7 +1,7 @@
 // require 
 const promptly = require('promptly')
 const fs = require('fs-extra')
-const consoleLog = require('../lib/consoleLog')
+const [consoleLog,errorLog] = require('../lib/consoleLog')
 const config = require('../config')
 
 async function getInput(softmod,cmd,inputName,jsonName=inputName,inputNameClean=jsonName,defaultValue='<blank>') {

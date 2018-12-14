@@ -26,6 +26,11 @@ function logType(type) {
     }
 }
 
-module.exports = function(type,message) {
-    console.log(chalk`{grey ${moment(new Date()).format('YYYY-MM-DD HH:mm:ss')}} ${logType(type)} ${message}`)
+module.exports = {
+    errorLog: function(err) {
+        console.log(chalk`{grey ${moment(new Date()).format('YYYY-MM-DD HH:mm:ss')}} ${logType('error')} ${err}`)
+    },
+    consoleLog: function(type,message) {
+        console.log(chalk`{grey ${moment(new Date()).format('YYYY-MM-DD HH:mm:ss')}} ${logType(type)} ${message}`)
+    }
 }

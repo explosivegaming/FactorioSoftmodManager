@@ -38,7 +38,7 @@ router.get('/:softmodName/versions',(req,res) => {
                 }
             })
         }
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 })
 
 router.use('/:softmodName',(req,res) => {
@@ -65,7 +65,7 @@ router.use('/:softmodName',(req,res) => {
                 res.json(softmodData)
             })
         }
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 })
 
 /*router.get('/:softmodName',(req,res) => {

@@ -2,7 +2,7 @@ const fs = require('fs-extra')
 const promptly = require('promptly')
 const config = require('../config.json')
 
-const consoleLog = require('../lib/consoleLog')
+const [consoleLog,errorLog] = require('../lib/consoleLog')
 const Softmod = require('../lib/Softmod')
 
 const rootDir = process.env.dir
@@ -54,7 +54,7 @@ function getInstalled() {
             }))
             resolve(installed)
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 function cleanIndex(removedModules) {
@@ -75,7 +75,7 @@ function cleanIndex(removedModules) {
                 fs.writeFile(rootDir+config.modulesDir+config.modulesIndex,newData.join('\n')).then(resolve)
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 module.exports = async (softmod,cmd) => {

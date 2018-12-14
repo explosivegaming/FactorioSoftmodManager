@@ -4,7 +4,8 @@ const promptly = require('promptly')
 const config = require('../config.json')
 
 const Softmod = require('../lib/Softmod')
-const consoleLog = require('../lib/consoleLog')
+const [consoleLog,errorLog] = require('../lib/consoleLog')
+const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
 
@@ -23,7 +24,7 @@ function initDir() {
                 resovle()
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 async function skipPromt(submod,skip,noSkip,forceRecur) {
@@ -63,47 +64,6 @@ async function getSkips(softmod,skip,noSkip) {
     consoleLog('info','Checked dependencies for: '+softmod.name)
 }
 
-async function addSoftmodToIndex(softmod,index) {
-    if (Object.keys(index).includes(softmod.name)) return
-    await softmod.updateFromJson()
-    if (softmod.installed) {
-        consoleLog('info',`Added ${softmod.name} to the module index.`)
-        index[softmod.name] = softmod
-        await Promise.all(softmod.submodules.map(submod => addSoftmodToIndex(submod,index)))
-    }
-}
-
-function generateIndex() {
-    const index = {}
-    return new Promise((resolve,reject) => {
-        fs.readdir(rootDir+config.modulesDir,async (err,files) => {
-            await Promise.all(files.map(file => {
-                if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
-                    const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`,{throws:false})
-                    if (softmodJson) {
-                        const softmod = Softmod.fromJson(softmodJson)
-                        return addSoftmodToIndex(softmod,index)
-                    }
-                }
-            }))
-            resolve(index)
-        })
-    }).catch(err => consoleLog('error',err))
-}
-
-function saveIndex(index) {
-    let output = ''
-    Object.keys(index).forEach(softmodName => {
-        const softmod = index[softmodName]
-        output+=config.indexBody
-            .replace('${module_name}',softmod.name)
-            .replace('${module_path}',`.${config.modulesDir}/${softmod.name.replace(/\./gi,'/')}`)
-            .replace('${deps}',softmod.dependencies.filter(dep => !dep.versionQurey.includes('?')).map(dep => `'${dep.name}'`))
-    })
-    fs.writeFileSync(rootDir+config.modulesDir+config.modulesIndex,config.indexHeader+output+config.indexFooter)
-    consoleLog('info','Saved index.lua')
-}
-
 function moveLocale() {
     return new Promise((resolve,reject) => {
         fs.readdir(rootDir+config.modulesDir,async (err,files) => {
@@ -118,7 +78,7 @@ function moveLocale() {
                 resolve()
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 module.exports = async (softmod,cmd) => {
@@ -152,8 +112,9 @@ module.exports = async (softmod,cmd) => {
             await softmod.install(true,skip)
             consoleLog('status','Generating index file.')
             await new Promise(resolve => setTimeout(resolve,10)) // bugs in the index generation with modules paths not existing
-            const index = await generateIndex()
-            saveIndex(index)
+            const index = new LuaIndex()
+            await index.readDir(rootDir+config.modulesDir)
+            await index.save(rootDir+config.modulesDir+config.modulesIndex)
             if (!cmd.keepJsons) fs.remove(rootDir+config.jsonDir)
         }
         consoleLog('status','Command Finnished')

@@ -4,7 +4,8 @@ const config = require('../config.json')
 const archiver = require('archiver')
 
 const Softmod = require('../lib/Softmod')
-const consoleLog = require('../lib/consoleLog')
+const [consoleLog,errorLog] = require('../lib/consoleLog')
+const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
 
@@ -22,7 +23,7 @@ function getModules(dir) {
                 resolve(rtn)
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 function getRawSubmodules(softmod) {
@@ -40,7 +41,7 @@ function getRawSubmodules(softmod) {
                 resolve(rtn)
             }
         })
-    }).catch(err => consoleLog('error',err))
+    }).catch(errorLog)
 }
 
 async function getBuildTasks(softmod,tasks) {
@@ -54,7 +55,7 @@ async function getBuildTasks(softmod,tasks) {
 
 module.exports = async (softmod,cmd) => {
     try {
-        const outputDir = cmd.outputDir || '.'+config.outputDir
+        const outputDir = typeof cmd.export == 'string' && cmd.export || '.'+config.outputDir
         const tasks = {}
         if (cmd.all) {
             const modules = await getModules(rootDir+config.modulesDir)
@@ -68,7 +69,7 @@ module.exports = async (softmod,cmd) => {
         let userInput = true
         if (!process.env.skipUserInput) userInput = await promptly.confirm('Would you like to continue the build: (yes)',{default:'yes'})
         if (!userInput) throw new Error('canceled')
-        await fs.ensureDir(outputDir)
+        if (cmd.export) await fs.ensureDir(outputDir)
         // incremments the version numbers
         if (cmd.versionIncrement && !cmd.versionIncrementAll) {
             consoleLog('status','Incrementing version numbers')
@@ -81,9 +82,21 @@ module.exports = async (softmod,cmd) => {
         consoleLog('status','Building module json files')
         await Promise.all(Object.values(tasks).map(async task => {
             await task.build(true,cmd.createBackup,true)
-            await fs.copy(task.downloadPath+config.jsonFile,`${outputDir}/${task.name}_${task.version}.json`)
-            consoleLog('info','Exported json for: '+task.versionName)
+            if (cmd.export) {
+                await fs.copy(task.downloadPath+config.jsonFile,`${outputDir}/${task.name}_${task.version}.json`)
+                consoleLog('info','Exported json for: '+task.versionName)
+            }
         }))
+        // builds a new index file
+        const index = new LuaIndex()
+        await index.readDir(rootDir+config.modulesDir)
+        await index.save(rootDir+config.modulesDir+config.modulesIndex)
+        if (cmd.export) await index.save(outputDir+config.modulesIndex)
+        // if no exporting then no point making zip files
+        if (!cmd.export) {
+            consoleLog('status','Command Finnished')
+            return
+        }
         consoleLog('status','Building module zip files')
         await Promise.all(Object.values(tasks).map(task => {
             if (task.isScenario) return
@@ -121,7 +134,7 @@ module.exports = async (softmod,cmd) => {
                     }
                 })
                 // tells the archiver to finish and save
-            }).catch(err => consoleLog('error',err))
+            }).catch(errorLog)
         }))
         consoleLog('status','Command Finnished')
     } catch (err) {

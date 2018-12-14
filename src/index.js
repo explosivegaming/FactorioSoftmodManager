@@ -2,7 +2,7 @@
 const program = require('commander')
 const fs = require('fs-extra')
 const config = require('./config')
-const consoleLog = require('./lib/consoleLog')
+const [consoleLog,errorLog] = require('./lib/consoleLog')
 
 // a common function used to auto format the dir and find the softmod which is being used
 async function softmodDirVal(name='.',dir='.',cmd,path) {
@@ -70,8 +70,8 @@ program
     .alias('b')
     .description('Builds the module or collection and will give the exports which can then be added to the host')
     .option('-b, --create-backup','the old json will be renamed to have .bak on the end of the name')
-    .option('-o, --output-dir','the dir that the zips and jsons will be saved to relative to the active dir')
     .option('-a, --all','builds all modules that are insatlled')
+    .option('-e, --export [dir]','will output the softmod files to ./exports or the given dir')
     .option('-i, --version-increment [major|minor|patch]','increments the version number in a certain area, default patch')
     .option('-I, --version-increment-all [major|minor|patch]','increments the version number in a certain area, for all modules, default patch')
     .action((name,dir,cmd) => softmodDirVal(name,dir,cmd,'./commands/build'))
