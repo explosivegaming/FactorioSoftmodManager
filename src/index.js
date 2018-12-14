@@ -115,26 +115,6 @@ program
         require('./commands/host')(cmd)
     })
 
-// just a command that is used to test certain parts of the code without forcing a path; no constant function
-program
-    .command('test [dir]')
-    .description('a test command')
-    .action(async (dir='.',cmd) => {
-        process.env.dir = dir
-        process.env.databasePath = dir+'/fsm.db'
-        process.env.download = true
-        const database = require('./lib/database')
-        database.Softmods.findOne({
-            where: {
-                name: 'test'
-            }
-        }).then(softmod => {
-            softmod.getVersions().then(versions => {
-                versions.forEach(version => console.log(version.name))
-            })
-        })
-    })
-
 // program info
 program
     .version('1.1.9')
