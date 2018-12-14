@@ -117,7 +117,7 @@ program
 
 // program info
 program
-    .version('1.1.9')
+    .version('1.2.2')
     .usage('fsm <command> [options]')
     .option('-d, --no-download','will not download any files')
     .option('-f, --force','forces the prossess to run when it would cancel normally')

@@ -15,5 +15,5 @@
     "hostIP": null,
     "removeLocaleAfterInstall": false,
     "cleanModules": true,
-    "serverURL": "http://localhost:3001"
+    "serverURL": "http://explosivegaming.nl:3001"
 }
