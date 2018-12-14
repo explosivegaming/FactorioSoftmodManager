@@ -1,7 +1,7 @@
 // require 
 const promptly = require('promptly')
 const fs = require('fs-extra')
-const [consoleLog,errorLog] = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 const config = require('../config')
 
 async function getInput(softmod,cmd,inputName,jsonName=inputName,inputNameClean=jsonName,defaultValue='<blank>') {
@@ -54,7 +54,7 @@ module.exports = async (softmod,cmd) => {
             })
             await promise
         }
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

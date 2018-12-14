@@ -1,4 +1,4 @@
-const [consoleLog,errorLog] = require('./consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./consoleLog')
 const fs = require('fs-extra')
 const Softmod = require('./Softmod')
 const config = require('../config')
@@ -18,7 +18,7 @@ class LuaIndex {
         if (softmod.installed) {
             if (softmod.installed) {
                 consoleLog('info',`Added ${softmod.name} to the module index.`)
-                index[softmod.name] = softmod
+                this.modules[softmod.name] = softmod
                 await Promise.all(softmod.submodules.map(submod => this.addSoftmod(submod)))
             }
         }
@@ -28,8 +28,8 @@ class LuaIndex {
         return new Promise((resolve,reject) => {
             fs.readdir(dir).then(async files => {
                 await Promise.all(files.map(file => {
-                    if (fs.statSync(`${rootDir+config.modulesDir}/${file}`).isDirectory()) {
-                        const softmodJson = fs.readJSONSync(`${rootDir+config.modulesDir}/${file}/${config.jsonFile}`,{throws:false})
+                    if (fs.statSync(`${dir}/${file}`).isDirectory()) {
+                        const softmodJson = fs.readJSONSync(`${dir}/${file}/${config.jsonFile}`,{throws:false})
                         if (softmodJson) {
                             const softmod = Softmod.fromJson(softmodJson)
                             return this.addSoftmod(softmod)

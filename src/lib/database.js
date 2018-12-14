@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize')
-const [consoleLog,errorLog] = require('./consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./consoleLog')
 
 // look into replication.read and replication.write
 const sequelize = new Sequelize('factorioSoftmodManager',null,null,{

@@ -3,6 +3,7 @@ const router = Express.Router()
 const database = require('../lib/database')
 const semver = require('semver')
 const Softmod = require('../lib/Softmod')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 
 router.param('softmodName',(req,res,next,value,name) => {
     let [softmodName,softmodVersion] = Softmod.extractVersionFromName(req.params.softmodName,true)
@@ -36,9 +37,9 @@ router.get('/:softmodName/versions',(req,res) => {
                     })
                     res.json(softmodData)
                 }
-            })
+            }).catch(err => consoleLog('error',err))
         }
-    }).catch(errorLog)
+    }).catch(err => consoleLog('error',err))
 })
 
 router.use('/:softmodName',(req,res) => {
@@ -65,7 +66,7 @@ router.use('/:softmodName',(req,res) => {
                 res.json(softmodData)
             })
         }
-    }).catch(errorLog)
+    }).catch(err => consoleLog('error',err))
 })
 
 /*router.get('/:softmodName',(req,res) => {

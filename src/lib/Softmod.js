@@ -5,7 +5,7 @@ const requestDatabase = request.defaults({baseUrl:config.serverURL})
 
 const unzipper = require('unzip')
 const fs = require('fs-extra')
-const [consoleLog,errorLog] = require('./consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./consoleLog')
 const semver = require('semver')
 
 const rootDir = process.env.dir
@@ -62,18 +62,18 @@ class Softmod {
         if (this.isScenario) return
         function recur(dir,dirName) {
             return new Promise((resolve,reject) => {
-                fs.readdir(dir,async (err,files) => {
+                fs.readdir(dir,(err,files) => {
                     if (err) reject(err)
                     else {
                         for (let i=0;i<files.length;i++) {
                             const file = files[i]
-                            if (fs.statSync(`${dir}/${file}`).isDirectory() && fs.existsSync(`${dir}/${file}/${config.jsonFile}`)) recur.apply(this,[`${dir}/${file}`,file])
+                            if (fs.statSync(`${dir}/${file}`).isDirectory() && !fs.existsSync(`${dir}/${file}/${config.jsonFile}`)) recur.apply(this,[`${dir}/${file}`,file])
                             else {
                                 if (file.includes('.cfg')) {
                                     let lang = dirName
                                     if (dirName == config.localeDir) lang = file.replace('.cfg','')
                                     try {
-                                        await fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
+                                        fs.copy(`${dir}/${file}`,`${rootDir+config.localeDir}/${lang}/${this.name}.cfg`,{overwrite:process.env.useForce})
                                         .catch(errorLog)
                                     } catch (err) {
                                         consoleLog('error',err)
@@ -83,7 +83,7 @@ class Softmod {
                         }
                         resolve()
                     }
-                })
+                }).catch(reject)
             }).catch(err => {
                 if (!err.code == 'ENOENT') consoleLog('error',err)
             })
@@ -149,7 +149,7 @@ class Softmod {
             if (!this.location && !this.isScenario) reject('No location for module download')
             else {
                 await this.downloadPackage()
-                this.copyLocale() // causes some bugs for some reason, EBUSY
+                await this.copyLocale() // causes some bugs for some reason, EBUSY
                 let promises = this.dependencies.map(softmod => softmod.install(true,skip))
                 if (this.collection) promises.push(this.collection.install(false,skip))
                 if (recur) promises = promises.concat(this.submodules.map(softmod => softmod.install(true,skip)))
@@ -167,7 +167,7 @@ class Softmod {
             return new Promise(async (resolve,reject) => {
                 const zipPath = `${this.downloadPath}/${this.name}.zip`
                 try {
-                    await fs.emptyDir(this.downloadPath)
+                    await fs.emptyDir(this.downloadPath).catch(reject)
                     let url = this.location
                     if (url == 'FSM_ARCHIVE') url = `${config.serverURL}/archive/${this.name}_${this.version}`
                     request(url)
@@ -175,16 +175,18 @@ class Softmod {
                     .pipe(fs.createWriteStream(zipPath))
                     .on('finish',() => {
                         fs.createReadStream(zipPath)
+                        .on('error',err => reject('Read Stream Error: '+err))
                         .pipe(unzipper.Extract({ path: this.downloadPath}))
-                        .on('error',err => reject('Pipe Error: '+err))
-                        .on('finish',async () => {
-                            if (this.json) fs.writeJsonSync(this.downloadPath+config.jsonFile,this.json,{spaces:2})
+                        .on('error',err => reject('Extract Pipe Error: '+err))
+                        .on('close',async () => {
+                            if (this.json) fs.writeJsonSync(this.downloadPath+config.jsonFile,this.json,{spaces:2,throws:false})
                             consoleLog('info','Downloaded package for: '+this.versionName)
                             resolve()
                         })
                     })
+                    .on('error',err => reject('Download Pipe Error: '+err))
                 } catch (err) {
-                    reject('Download Error: '+err) // bugs be bugs stopped working again....
+                    reject('Download Error: '+err)
                 }
             })
         }
@@ -198,7 +200,7 @@ class Softmod {
                     let success = false
                     while (!success && ctn < 10) {
                         ctn++
-                        await download.apply(this) //here
+                        await download.apply(this)
                         .catch(err => {
                             if (ctn == 10) reject(err)
                             success = false
@@ -431,16 +433,15 @@ class Softmod {
     }
 
     get installed() {
-        const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
-        if (!fs.existsSync(downloadPath+config.jsonFile)) return false
-        const json = fs.readJSONSync(downloadPath+config.jsonFile)
-        if (!json && json.version) return false
-        /*if (this.version) {
-            return semver.eq(json.version,this.version)
-        } else {
-            return semver.satisfies(json.version,this.versionQurey.replace('?',''))
-        }*/
-        return true
+        try {
+            const downloadPath = `${rootDir+config.modulesDir}/${this.name.replace(/\./gi,'/')}`
+            if (!fs.existsSync(downloadPath+config.jsonFile)) return false
+            const json = fs.readJSONSync(downloadPath+config.jsonFile,{throws:false})
+            if (!json || !json.version) return false
+            return true
+        } catch(err) {
+            errorLog(err)
+        }
     }
 
     get versionName() {

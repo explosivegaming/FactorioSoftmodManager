@@ -26,11 +26,24 @@ function logType(type) {
     }
 }
 
+function consoleLog(type,message) {
+    console.log(chalk`{grey ${moment(new Date()).format('YYYY-MM-DD HH:mm:ss')}} ${logType(type)} ${message}`)
+}
+
+const errors = []
+
 module.exports = {
-    errorLog: function(err) {
-        console.log(chalk`{grey ${moment(new Date()).format('YYYY-MM-DD HH:mm:ss')}} ${logType('error')} ${err}`)
+    finaliseLog: function() {
+        consoleLog('status','Command Finnished')
+        if (errors.length > 0) {
+            consoleLog('status','There were the following errors:')
+            console.log(errors.map(str => chalk`${logType('error')} ${str}`).join('\n'))
+        }
     },
-    consoleLog: function(type,message) {
-        console.log(chalk`{grey ${moment(new Date()).format('YYYY-MM-DD HH:mm:ss')}} ${logType(type)} ${message}`)
-    }
+    errorLog: function(err) {
+        consoleLog('error',err)
+        errors.push(err)
+    },
+    consoleLog: consoleLog,
+    errors: errors
 }

@@ -2,7 +2,7 @@
 const program = require('commander')
 const fs = require('fs-extra')
 const config = require('./config')
-const [consoleLog,errorLog] = require('./lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('./lib/consoleLog')
 
 // a common function used to auto format the dir and find the softmod which is being used
 async function softmodDirVal(name='.',dir='.',cmd,path) {
@@ -147,6 +147,11 @@ program
 // if no command then it displays help
 if (process.argv[2]) program.parse(process.argv)
 else program.help()
+
+process.on('error',err => {
+    errorLog(err)
+    finaliseLog()
+})
 
 module.exports = () => {
     program.parse(arguments.join(' '))

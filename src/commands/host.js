@@ -2,7 +2,7 @@ const fs = require('fs-extra')
 const database = require('../lib/database.js')
 const semver = require('semver')
 
-const [consoleLog,errorLog] = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 const Softmod = require('../lib/Softmod')
 const rootDir = process.env.dir
 
@@ -80,6 +80,6 @@ module.exports = async cmd => {
         app.listen(cmd.port,cmd.address, () => {
             consoleLog('start','Server started on: '+cmd.port)
         })
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     }
 }

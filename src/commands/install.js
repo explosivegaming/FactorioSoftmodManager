@@ -4,7 +4,7 @@ const promptly = require('promptly')
 const config = require('../config.json')
 
 const Softmod = require('../lib/Softmod')
-const [consoleLog,errorLog] = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
@@ -114,10 +114,10 @@ module.exports = async (softmod,cmd) => {
             await new Promise(resolve => setTimeout(resolve,10)) // bugs in the index generation with modules paths not existing
             const index = new LuaIndex()
             await index.readDir(rootDir+config.modulesDir)
-            await index.save(rootDir+config.modulesDir+config.modulesIndex)
+            await index.save(rootDir+config.modulesDir)
             if (!cmd.keepJsons) fs.remove(rootDir+config.jsonDir)
         }
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     } catch(err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

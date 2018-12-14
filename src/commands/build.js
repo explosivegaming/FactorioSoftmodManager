@@ -4,7 +4,7 @@ const config = require('../config.json')
 const archiver = require('archiver')
 
 const Softmod = require('../lib/Softmod')
-const [consoleLog,errorLog] = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 const LuaIndex = require('../lib/luaIndex')
 
 const rootDir = process.env.dir
@@ -87,14 +87,20 @@ module.exports = async (softmod,cmd) => {
                 consoleLog('info','Exported json for: '+task.versionName)
             }
         }))
+        // copies all local files
+        consoleLog('status','Coyping locale files')
+        await Promise.all(Object.values(tasks).map(async task => {
+            await task.copyLocale()
+        }))
         // builds a new index file
+        consoleLog('status','Building new lus index')
         const index = new LuaIndex()
         await index.readDir(rootDir+config.modulesDir)
-        await index.save(rootDir+config.modulesDir+config.modulesIndex)
-        if (cmd.export) await index.save(outputDir+config.modulesIndex)
+        await index.save(rootDir+config.modulesDir)
+        if (cmd.export) await index.save(outputDir)
         // if no exporting then no point making zip files
         if (!cmd.export) {
-            consoleLog('status','Command Finnished')
+            finaliseLog()
             return
         }
         consoleLog('status','Building module zip files')
@@ -136,7 +142,7 @@ module.exports = async (softmod,cmd) => {
                 // tells the archiver to finish and save
             }).catch(errorLog)
         }))
-        consoleLog('status','Command Finnished')
+        finaliseLog()
     } catch (err) {
         if (err.message != 'canceled') consoleLog('error',err)
     }

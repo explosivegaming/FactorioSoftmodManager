@@ -1,6 +1,6 @@
 // require 
 const chalk = require('chalk')
-const [consoleLog,errorLog] = require('../lib/consoleLog')
+const {consoleLog,errorLog,finaliseLog} = require('../lib/consoleLog')
 
 function capFirst(string) {
     return string.charAt(0).toUpperCase()+string.toLowerCase().slice(1)
@@ -87,5 +87,5 @@ module.exports = async (softmod,cmd) => {
             console.log(chalk`  ${submod.name.replace(softmod.name+'.','')}: ${submod.jsonValue('description')}`)
         })
     }
-    consoleLog('status','Command Finnished')
+    finaliseLog()
 }
