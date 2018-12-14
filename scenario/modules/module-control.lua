@@ -1,12 +1,12 @@
---- Desction <get from json>
--- @module ThisModule@X.Y.Z
--- @author <get from json>
--- @license <get from json>
+--- BOILER_INIT${moduleDescription}
+-- @module BOILER_INIT${moduleName}
+-- @author BOILER_INIT${moduleAuthor}
+-- @license BOILER_INIT${moduleLicense}
 -- @alais ThisModule 
 
 -- Module Require
-local Module = require('Module@>X.Y.Z')
-local SubModule = require('Collection.Submodule@^X.Y.Z')
+local Module = require('Module')
+local SubModule = require('Collection.Submodule')
 local OptModule -- OptModule@^X.Y.Z
 
 -- Local Varibles
@@ -15,7 +15,7 @@ local OptModule -- OptModule@^X.Y.Z
 local module_verbose = false
 local ThisModule = {
     on_init=function()
-        if loaded_modules['OptModule@^X.Y.Z'] then OptModule = require('OptModule@^X.Y.Z') end
+        if loaded_modules['OptModule'] then OptModule = require('OptModule') end
         --code
     end,
     on_post=function()
@@ -29,8 +29,18 @@ local global = global{
 }
 
 -- Function Define
+local function bar()
+    return 'bar'
+end
+
+function ThisModule.foo() 
+    return 'foo'
+end
 
 -- Event Handlers Define
+script.on_event(defines.events.on_player_joined_game,function(event)
+    game.print(game.players[event.player_index].name..' joined the game!!!')
+end)
 
 -- Module Return
 return ThisModule 
