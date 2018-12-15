@@ -306,6 +306,7 @@ Manager.require = setmetatable({
                     local start, _end = moduleName:find(path)
                     local subname = moduleName:sub(_end+2)
                     -- does not add the module if it is a subsubmodule; or the key already exitsts
+                    if not softmod then softmod = {} end
                     if not subname:find('.',nil,true) and not softmod[subname] then softmod[subname] = Manager.require(moduleName,nil,true,true) end
                 end
             end
