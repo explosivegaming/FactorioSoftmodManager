@@ -3,7 +3,7 @@
     "jsonFile": "/softmod.json",
     "jsonDir": "/jsonDownloads",
     "outputDir": "/exports",
-    "srcScenario": "/scenario",
+    "srcScenario": "/../../scenario",
     "localeExt": ".cfg",
     "localeDir": "/locale",
     "modulesDir": "/modules",
