@@ -100,7 +100,8 @@ module.exports = async (softmod,cmd) => {
         if (cmd.export) await index.save(outputDir)
         // updates control.lua if needed
         // hanndels the different levels of verbose
-        if (dev) {
+        if (cmd.dev) {
+            let dev = cmd.dev
             if (dev == true) dev = 4
             if (dev == 'none') dev = -1
             fs.readFile(rootDir+config.luaFile).then(data => {
